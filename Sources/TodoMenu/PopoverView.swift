@@ -19,6 +19,18 @@ struct PopoverView: View {
             footer
         }
         .frame(width: 340)
+        // 自测钩子：仅在 --selftest 模式下响应
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.openForm)) { _ in
+            guard SelfTest.isEnabled else { return }
+            showAddForm = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.closeForm)) { _ in
+            guard SelfTest.isEnabled else { return }
+            showAddForm = false
+        }
+        .onChange(of: showAddForm) { _, _ in notifySizeChange() }
+        .onChange(of: searchText) { _, _ in notifySizeChange() }
+        .onChange(of: store.todos) { _, _ in notifySizeChange() }
     }
 
     // MARK: - 顶部：搜索框 + 加号
@@ -32,7 +44,7 @@ struct PopoverView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) { showAddForm.toggle() }
+                showAddForm.toggle()
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .semibold))
@@ -51,9 +63,8 @@ struct PopoverView: View {
     private var content: some View {
         if showAddForm {
             AddTodoView(onDone: {
-                withAnimation(.easeInOut(duration: 0.15)) { showAddForm = false }
+                showAddForm = false
             })
-            .transition(.opacity)
         }
         let items = store.filtered(searchText)
         if items.isEmpty {
@@ -105,5 +116,12 @@ struct PopoverView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+    }
+
+    /// 内容尺寸可能变化时，通知外壳同步弹层大小
+    private func notifySizeChange() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .popoverSizeDidChange, object: nil)
+        }
     }
 }

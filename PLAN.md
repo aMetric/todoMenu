@@ -131,3 +131,9 @@ todoWrite/
 - 子任务、标签、优先级、重复任务
 
 以上如需要，可排入 v1.1 之后。
+
+## 11. 实现备注（v0.1 开发中记录）
+
+- 原方案使用 `MenuBarExtra(.window)`；实测 macOS 26 上点击"添加"收起新增表单（弹层内容高度变化）会触发 AppKit 约束异常（`-[NSWindow(NSDisplayCycle) _postWindowNeedsUpdateConstraints]` NSException），应用直接退出。
+- 已改为经典 AppKit 方案：`NSStatusItem`（菜单栏 "TODO" 文字）+ `NSPopover` + `NSHostingController`（承载 SwiftUI 视图），并去掉表单切换动画。
+- 提供 `--selftest` 自测模式：模拟"展开表单 → 添加 → 收起表单"多轮循环，验证无崩溃，数据写入临时文件。

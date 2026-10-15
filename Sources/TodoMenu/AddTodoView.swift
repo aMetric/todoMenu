@@ -61,6 +61,12 @@ struct AddTodoView: View {
             }
         }
         .padding(12)
+        .onChange(of: hasDeadline) { _, _ in
+            // 截止时间开关影响表单高度，通知外壳同步弹层大小
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .popoverSizeDidChange, object: nil)
+            }
+        }
     }
 
     private var trimmedTitle: String {

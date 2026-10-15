@@ -15,13 +15,25 @@ final class TodoStore: ObservableObject {
         var todos: [Todo]
     }
 
-    init() {
-        let supportDir = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
-        let dir = supportDir.appendingPathComponent("TodoMenu", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        fileURL = dir.appendingPathComponent("todos.json")
+    /// - Parameter fileURL: 自定义数据文件路径。默认使用 Application Support 下的
+    ///   `TodoMenu/todos.json`；自测模式传临时路径，避免污染真实数据。
+    init(fileURL: URL? = nil) {
+        let url: URL
+        if let fileURL {
+            try? FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            url = fileURL
+        } else {
+            let supportDir = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first!
+            let dir = supportDir.appendingPathComponent("TodoMenu", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            url = dir.appendingPathComponent("todos.json")
+        }
+        self.fileURL = url
         load()
     }
 

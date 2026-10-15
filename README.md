@@ -52,6 +52,13 @@ scripts/bundle.sh           # 一键打包 .app 脚本
 PLAN.md                     # 方案与需求文档
 ```
 
+## 技术说明 Technical Notes
+
+- 菜单栏与弹层采用经典 AppKit 方案（`NSStatusItem` + `NSPopover`）而非 SwiftUI 的 `MenuBarExtra`：
+  后者在弹层内容高度变化时存在崩溃 bug，且 macOS 26 在系统隐藏菜单栏图标时可能让进程静默退出。
+- 数据为单 JSON 文件，带版本号，损坏时自动备份重建。
+- `--selftest` 启动参数可运行自动化冒烟测试（弹层展开/收起、添加/完成操作），数据写入临时文件。
+
 ## Roadmap
 
 - v1.1：编辑待办、开机自启、系统通知提醒、导出
