@@ -16,16 +16,18 @@ A minimal menu bar todo app for macOS. Click the "TODO" icon in the menu bar to 
 
 ## 系统要求 Requirements
 
-- macOS 14 或更高版本（Apple Silicon / Intel 均可）
+- **macOS 14（Sonoma）或更高版本**（当前最低支持版本，含 14.5）
+- Apple Silicon 与 Intel 均支持（Universal 二进制）
+- 已在 macOS 14.5（Sonoma）与 macOS 26 实测；CI 持续在 macOS 14 / 15 环境回归验证
 
 ## 构建 Build（无需 Xcode）
 
 ```bash
-# 方式一：一键打包 .app
+# 方式一：一键打包 .app（产出 Universal：arm64 + x86_64）
 ./scripts/bundle.sh
 open build/TodoMenu.app
 
-# 方式二：直接运行（开发调试）
+# 方式二：直接运行（开发调试，仅本机架构）
 swift run
 ```
 
@@ -35,6 +37,7 @@ swift run
 
 > 本项目目前使用 ad-hoc 签名（无需 Apple 开发者账号），仅本机构建运行。
 > 若下载他人分发的未公证版本，macOS 可能拦截，右键 → 打开即可，或从源码自行构建。
+> 正式公证分发需 Apple 开发者账号（$99/年），可后续接入。
 
 ## 使用 Usage
 
@@ -56,8 +59,13 @@ PLAN.md                     # 方案与需求文档
 
 - 菜单栏与弹层采用经典 AppKit 方案（`NSStatusItem` + `NSPopover`）而非 SwiftUI 的 `MenuBarExtra`：
   后者在弹层内容高度变化时存在崩溃 bug，且 macOS 26 在系统隐藏菜单栏图标时可能让进程静默退出。
+- **兼容性策略**：部署目标固定为 macOS 14.0（`Package.swift` platforms + `LSMinimumSystemVersion`），
+  所用 API 全部受编译器可用性检查约束（面向 14.0 编译通过即不包含更高版本才有的 API）；
+  所有 API 在 macOS 14 上均可用。
 - 数据为单 JSON 文件，带版本号，损坏时自动备份重建。
 - `--selftest` 启动参数可运行自动化冒烟测试（弹层展开/收起、添加/完成操作），数据写入临时文件。
+- CI（`.github/workflows/ci.yml`）：在 macOS 14（Sonoma，最低支持版本）与 macOS 15 环境构建
+  Universal 包、校验架构与最低系统版本并运行自测。
 
 ## Roadmap
 

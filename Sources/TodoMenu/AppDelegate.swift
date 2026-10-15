@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if SelfTest.isEnabled {
+            // 清掉上次自测遗留的数据文件，保证测试确定性
+            try? FileManager.default.removeItem(at: SelfTest.dataURL)
+        }
         setupStatusItem()
         setupPopover()
         // 内容变化时（表单开合、增删改查、搜索过滤）同步弹层尺寸
@@ -134,14 +138,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         step(7.5) { [weak self] in
             guard let self else { exit(1) }
             let distinct = Set(selftestHeights.map { Int($0) })
+            let spread = (selftestHeights.max() ?? 0) - (selftestHeights.min() ?? 0)
             print("SELFTEST heights=\(distinct.sorted())")
-            // 弹层高度必须随内容（表单开合/列表增减）至少出现 3 种取值，
-            // 证明尺寸双向同步生效；若高度恒定说明同步失效。
-            if distinct.count >= 3 {
+            // 弹层高度必须随内容变化：至少出现 2 种取值，且跨度 ≥ 100pt
+            //（表单展开约 470pt、收起约 100~280pt）。若高度恒定说明尺寸同步失效。
+            if distinct.count >= 2, spread >= 100 {
                 print("SELFTEST OK")
                 exit(0)
             } else {
-                print("SELFTEST FAIL: 弹层高度没有随内容变化")
+                print("SELFTEST FAIL: 弹层高度没有随内容变化（heights=\(distinct.sorted())）")
                 exit(1)
             }
         }

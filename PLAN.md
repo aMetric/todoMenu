@@ -137,3 +137,12 @@ todoWrite/
 - 原方案使用 `MenuBarExtra(.window)`；实测 macOS 26 上点击"添加"收起新增表单（弹层内容高度变化）会触发 AppKit 约束异常（`-[NSWindow(NSDisplayCycle) _postWindowNeedsUpdateConstraints]` NSException），应用直接退出。
 - 已改为经典 AppKit 方案：`NSStatusItem`（菜单栏 "TODO" 文字）+ `NSPopover` + `NSHostingController`（承载 SwiftUI 视图），并去掉表单切换动画。
 - 提供 `--selftest` 自测模式：模拟"展开表单 → 添加 → 收起表单"多轮循环，验证无崩溃，数据写入临时文件。
+
+## 12. 兼容性策略（2025-10-15 更新）
+
+- **最低支持版本：macOS 14（Sonoma）**，含 14.5；不支持更低版本（如需 macOS 13 仅需少量调整：`onChange` 换单参数闭包、确认 `tint` 样式等）。
+- **Universal 二进制**：`scripts/bundle.sh` 分别交叉编译 arm64 / x86_64 后 `lipo` 合并，Apple Silicon 与 Intel 通用；两切片最低系统版本均为 14.0（`vtool -show-build` 已验证）。
+- **部署目标**：`Package.swift` platforms `.macOS(.v14)` + Info.plist `LSMinimumSystemVersion=14.0`；面向 14.0 编译通过即保证不含更高版本 API（编译器可用性检查强制）。
+- **持续验证**：GitHub Actions CI 在 macOS 14（Sonoma）与 macOS 15 环境构建 Universal 包、校验架构/最低版本并运行 `--selftest`。
+- **分发**：v1 为 ad-hoc 签名 + 源码构建，下载需右键打开；正式公证（dmg + notarization）需 Apple 开发者账号，作为后续项。
+- 版本号：0.2.0 起（0.1.0 为初版）。

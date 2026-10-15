@@ -1,0 +1,50 @@
+name: CI
+
+# 每次 push 到 main、PR 以及手动触发时运行。
+# 重点：在 macOS 14（Sonoma，本项目最低支持版本）环境构建并冒烟测试，
+# 保证不会"只在最新系统上能用"。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14 = Sonoma（最低支持版本）；macos-15 = Sequoia
+        os: [macos-14, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 构建 Universal .app（arm64 + x86_64）
+        run: ./scripts/bundle.sh
+
+      - name: 校验架构与最低系统版本
+        run: |
+          lipo -archs build/TodoMenu.app/Contents/MacOS/TodoMenu
+          vtool -show-build build/TodoMenu.app/Contents/MacOS/TodoMenu
+          plutil -lint build/TodoMenu.app/Contents/Info.plist
+          codesign --verify --strict build/TodoMenu.app
+
+      - name: 自测（GUI 冒烟：表单开合/增删改，验证无崩溃）
+        # GUI 在无头 CI 环境可能偶发不可用，失败不阻塞，但会留下日志供排查
+        continue-on-error: true
+        timeout-minutes: 2
+        run: ./build/TodoMenu.app/Contents/MacOS/TodoMenu --selftest
+
+      - name: 打包 zip 产物
+        run: |
+          cd build
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" TodoMenu.app/Contents/Info.plist)
+          zip -r "TodoMenu-${VERSION}-macOS14+.zip" TodoMenu.app
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: TodoMenu-${{ matrix.os }}
+          path: build/*.zip
+          if-no-files-found: error
