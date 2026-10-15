@@ -1,79 +1,126 @@
+<div align="center">
+
 # TodoMenu
 
-macOS 菜单栏待办应用：常驻菜单栏的 "TODO" 图标，点击弹出极简待办面板。数据只存在本机，无账号、无网络。
+**极简的 macOS 菜单栏待办清单** · A minimal menu bar todo list for macOS
 
-A minimal menu bar todo app for macOS. Click the "TODO" icon in the menu bar to open a tiny todo panel. All data is stored locally.
+[![CI](https://github.com/aMetric/todoMenu/actions/workflows/ci.yml/badge.svg)](https://github.com/aMetric/todoMenu/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg?logo=apple)](https://github.com/aMetric/todoMenu)
+[![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138.svg?logo=swift)](https://www.swift.org)
+[![Apple Silicon & Intel](https://img.shields.io/badge/Universal%20Binary-black.svg?logo=apple)](https://github.com/aMetric/todoMenu)
+[![Stars](https://img.shields.io/github/stars/aMetric/todoMenu?style=social)](https://github.com/aMetric/todoMenu)
 
-## 特性 Features
+</div>
 
-- 常驻菜单栏，图标为 "TODO"，点击弹出面板，不占 Dock
-- 顶部一行：搜索框（按名称 / 对接人过滤）+ 右侧加号按钮
-- 列表最多显示 5 条，超出后列表内部滚动
-- 新增待办：名称（必填）、截止时间（可留空）、对接人（选填）；新增时间自动记录
-- 鼠标悬停某条时展示完整信息（名称 / 截止时间 / 对接人 / 新增时间）
-- 截止时间已过标红、当天标橙；勾选完成后划线置灰
-- 数据本地存储：`~/Library/Application Support/TodoMenu/todos.json`
+常驻菜单栏的 **"TODO"** 图标，点击弹出极简待办面板。**数据只存在本机，无账号、无网络。** 原生 SwiftUI 实现，包体约 400KB。
 
-## 系统要求 Requirements
+A **"TODO"** icon lives in your menu bar; click it to open a tiny todo panel. **Local-only. No account. No network.** Native SwiftUI, ~400KB.
 
-- **macOS 14（Sonoma）或更高版本**（当前最低支持版本，含 14.5）
-- Apple Silicon 与 Intel 均支持（Universal 二进制）
-- 已在 macOS 14.5（Sonoma）与 macOS 26 实测；CI 持续在 macOS 14 / 15 环境回归验证
+## 预览 Preview
 
-## 构建 Build（无需 Xcode）
+![TodoMenu 面板](docs/screenshot.png)
+
+## ✨ 特性 Features
+
+- 🖥 常驻菜单栏，图标为 "TODO"，不占 Dock，点击面板外自动收起
+- 🔍 顶部搜索框（按名称 / 对接人实时过滤）+ 右侧 ➕ 按钮
+- 📋 列表最多显示 5 条，超出后列表内部滚动
+- ➕ 新增待办：名称（必填）、截止时间（可留空）、对接人（选填）；**新增时间自动记录**
+- 👆 鼠标悬停某条时展示完整信息（名称 / 截止时间 / 对接人 / 新增时间）
+- ⏰ 截止时间已过标红、当天标橙；勾选完成后划线置灰
+- 💾 数据本地存储：`~/Library/Application Support/TodoMenu/todos.json`（带版本号，损坏自动备份重建）
+
+## 安装 Installation
+
+### 下载构建好的应用（推荐）
+
+前往 [Releases](../../releases) 下载 `TodoMenu-*.zip`，解压后拖入 `/Applications`。
+
+> 当前版本使用 ad-hoc 签名（无需 Apple 开发者账号）。首次打开若被拦截，**右键 → 打开**即可。
+
+### 从源码构建
 
 ```bash
-# 方式一：一键打包 .app（产出 Universal：arm64 + x86_64）
-./scripts/bundle.sh
+git clone git@github.com:aMetric/todoMenu.git
+cd todoMenu
+./scripts/bundle.sh          # 产出 Universal .app（arm64 + x86_64）
 open build/TodoMenu.app
-
-# 方式二：直接运行（开发调试，仅本机架构）
-swift run
 ```
 
-## 安装 Install
+### Homebrew
 
-把 `build/TodoMenu.app` 拖入 `/Applications` 即可。
-
-> 本项目目前使用 ad-hoc 签名（无需 Apple 开发者账号），仅本机构建运行。
-> 若下载他人分发的未公证版本，macOS 可能拦截，右键 → 打开即可，或从源码自行构建。
-> 正式公证分发需 Apple 开发者账号（$99/年），可后续接入。
+`brew install --cask todo-menu` 计划在首个正式 Release 后提交至 homebrew-cask。欢迎通过 [Issue](../../issues) 催更或共建。
 
 ## 使用 Usage
 
-1. 菜单栏点击 "TODO" 打开面板
-2. 点右上角 **+** 新增待办：名称、截止时间、对接人（新增时间自动记录）
+1. 菜单栏点击 **TODO** 打开面板
+2. 点右上角 **+** 新增待办：名称（必填）、截止时间（可留空）、对接人（选填）
 3. 点击行首圆圈标记完成；悬停该行出现 🗑 可删除
-4. 面板底部可退出应用
+4. 面板右下角 **退出** 可退出应用
+
+## 数据与隐私 Data & Privacy
+
+- 全部数据保存在本机单文件 `~/Library/Application Support/TodoMenu/todos.json`（JSON，UTF-8，带版本号）
+- 无任何网络请求、无埋点、无第三方 SDK
+- 删除应用时同步删除该目录即可彻底清除数据
+
+## 兼容性 Compatibility
+
+| 环境 | 状态 |
+| --- | --- |
+| macOS 15 (Sequoia) | ✅ CI 持续验证 |
+| **macOS 14 (Sonoma)** | ✅ **最低支持版本**，CI 持续验证 |
+| macOS 13 及更早 | ❌ 不支持 |
+| Apple Silicon (M1+) | ✅ Universal 二进制 |
+| Intel | ✅ Universal 二进制 |
+
+部署目标固定为 macOS 14.0，所有 API 均受编译器可用性检查约束，保证不依赖更高版本系统能力。
+
+## 开发 Development
+
+环境要求：macOS 14+，Swift 5.9+（仅需 Xcode Command Line Tools，无需完整 Xcode）。
+
+```bash
+swift run                    # 直接运行（开发调试，本机架构）
+./scripts/bundle.sh          # 打包 Universal .app
+
+# 自动化冒烟测试：模拟表单开合、增删改操作，验证无崩溃且弹层尺寸同步
+./build/TodoMenu.app/Contents/MacOS/TodoMenu --selftest
+
+# 生成 README 截图（使用示例数据，不读取真实数据）
+./build/TodoMenu.app/Contents/MacOS/TodoMenu --shot docs/screenshot.png
+```
+
+架构说明见 [PLAN.md](PLAN.md)（方案、数据模型、兼容性策略、实现备注）。
 
 ## 项目结构 Structure
 
 ```text
-Package.swift               # SPM 工程定义
-Sources/TodoMenu/           # SwiftUI 源码
-scripts/bundle.sh           # 一键打包 .app 脚本
-PLAN.md                     # 方案与需求文档
+Package.swift                 # SPM 工程定义（macOS 14+，零依赖）
+Sources/TodoMenu/             # SwiftUI 源码（AppKit 外壳 + SwiftUI 视图）
+scripts/bundle.sh             # 一键打包 Universal .app
+.github/workflows/ci.yml      # CI：macOS 14/15 构建 + 自测 + 产物
+docs/                         # 截图等资源
+PLAN.md                       # 方案与需求文档
+CHANGELOG.md                  # 变更日志
 ```
-
-## 技术说明 Technical Notes
-
-- 菜单栏与弹层采用经典 AppKit 方案（`NSStatusItem` + `NSPopover`）而非 SwiftUI 的 `MenuBarExtra`：
-  后者在弹层内容高度变化时存在崩溃 bug，且 macOS 26 在系统隐藏菜单栏图标时可能让进程静默退出。
-- **兼容性策略**：部署目标固定为 macOS 14.0（`Package.swift` platforms + `LSMinimumSystemVersion`），
-  所用 API 全部受编译器可用性检查约束（面向 14.0 编译通过即不包含更高版本才有的 API）；
-  所有 API 在 macOS 14 上均可用。
-- 数据为单 JSON 文件，带版本号，损坏时自动备份重建。
-- `--selftest` 启动参数可运行自动化冒烟测试（弹层展开/收起、添加/完成操作），数据写入临时文件。
-- CI（`.github/workflows/ci.yml`）：在 macOS 14（Sonoma，最低支持版本）与 macOS 15 环境构建
-  Universal 包、校验架构与最低系统版本并运行自测。
 
 ## Roadmap
 
 - v1.1：编辑待办、开机自启、系统通知提醒、导出
-- v1.2：优先级 / 标签、可选的 iCloud 同步
+- v1.2：优先级 / 标签、可选的 iCloud 同步、App 图标与 DMG
+
+欢迎在 [Issues](../../issues) 提需求投票。
+
+## 贡献 Contributing
+
+欢迎任何形式的贡献：Bug 报告、功能建议、文档、代码。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+- 行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- 安全漏洞报告：[SECURITY.md](SECURITY.md)
+- 变更日志：[CHANGELOG.md](CHANGELOG.md)
 
 ## 开源协议 License
 
-[MIT](./LICENSE)
-
-欢迎提 Issue / PR。Contributions welcome.
+[MIT](LICENSE) © 2025 TodoMenu contributors

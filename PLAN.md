@@ -52,7 +52,7 @@ macOS 菜单栏常驻图标 + 点击弹出面板 + 本地文件存储，全部�
 ## 6. 项目结构（草案，方案 A）
 
 ```text
-todoWrite/
+todoMenu/
 ├── Package.swift                 # SPM 工程定义（macOS 14+）
 ├── Sources/TodoMenu/
 │   ├── TodoMenuApp.swift         # 入口 + MenuBarExtra

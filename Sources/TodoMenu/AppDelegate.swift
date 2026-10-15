@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import SwiftUI
 
 /// 应用外壳：NSStatusItem（菜单栏 "TODO" 文字图标）+ NSPopover（承载 SwiftUI 内容）。
@@ -15,6 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 自测模式使用临时数据文件，不污染真实数据
             return TodoStore(fileURL: SelfTest.dataURL)
         }
+        if Shot.outputPath != nil {
+            // 截图模式同样使用临时数据文件
+            return TodoStore(fileURL: Shot.dataURL)
+        }
         return TodoStore()
     }()
 
@@ -24,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 清掉上次自测遗留的数据文件，保证测试确定性
             try? FileManager.default.removeItem(at: SelfTest.dataURL)
         }
+        if Shot.outputPath != nil {
+            try? FileManager.default.removeItem(at: Shot.dataURL)
+        }
         setupStatusItem()
         setupPopover()
         // 内容变化时（表单开合、增删改查、搜索过滤）同步弹层尺寸
@@ -32,7 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.syncPopoverSize()
         }
-        runSelfTestIfNeeded()
+        if let shotPath = Shot.outputPath {
+            runShotIfNeeded(shotPath)
+        } else {
+            runSelfTestIfNeeded()
+        }
     }
 
     // MARK: - 菜单栏图标
@@ -95,14 +107,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 自测模式（--selftest）
 
+    /// 延时执行
+    private func step(_ delay: TimeInterval, _ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action)
+    }
+
     /// 模拟真实操作：打开弹层 → 展开新增表单 → 添加 → 收起表单，循环多轮，
     /// 覆盖弹层内容高度变化的各种时序，验证不会崩溃。
     private func runSelfTestIfNeeded() {
         guard SelfTest.isEnabled else { return }
-
-        func step(_ delay: TimeInterval, _ action: @escaping () -> Void) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action)
-        }
 
         step(0.5) { [weak self] in
             // 先激活应用再弹层：transient 弹层在应用未激活时会自动关闭，
@@ -155,6 +168,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(2)
         }
     }
+
+    // MARK: - 截图模式（--shot <输出路径>）
+
+    /// 用示例数据打开弹层并截取面板窗口，用于生成 README 截图。
+    /// 与真实数据完全隔离；应用捕获自己的窗口，无需屏幕录制权限。
+    private func runShotIfNeeded(_ outputPath: String) {
+        let cal = Calendar.current
+        let now = Date()
+        let yesterday = cal.date(byAdding: .day, value: -1, to: now) ?? now
+        let today18 = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now) ?? now
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: now) ?? now
+        let tomorrow10 = cal.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+
+        store.add(title: "评审团队 PR", deadline: nil, contact: "赵六")
+        store.add(title: "和设计对齐新图标", deadline: tomorrow10, contact: "李四")
+        store.add(title: "写周报", deadline: today18, contact: "张三")
+        store.add(title: "提交报销单", deadline: yesterday, contact: "王五")
+        store.add(title: "整理项目 Roadmap", deadline: nil, contact: "")
+        if let last = store.todos.last {
+            store.toggleDone(last.id) // 展示已完成样式
+        }
+
+        step(0.6) { [weak self] in
+            NSApp.activate(ignoringOtherApps: true)
+            self?.togglePopover(nil)
+        }
+        step(1.8) { [weak self] in
+            self?.captureShot(to: outputPath)
+        }
+    }
+
+    private func captureShot(to path: String) {
+        guard let window = popover?.contentViewController?.view.window else {
+            print("SHOT FAIL: window not found")
+            exit(1)
+        }
+        guard
+            let image = CGWindowListCreateImage(
+                .null,
+                .optionIncludingWindow,
+                CGWindowID(window.windowNumber),
+                [.boundsIgnoreFraming]
+            )
+        else {
+            print("SHOT FAIL: capture failed")
+            exit(1)
+        }
+        let rep = NSBitmapImageRep(cgImage: image)
+        guard let data = rep.representation(using: .png, properties: [:]) else {
+            print("SHOT FAIL: png encode failed")
+            exit(1)
+        }
+        do {
+            try data.write(to: URL(fileURLWithPath: path))
+            print("SHOT OK: \(path)")
+            exit(0)
+        } catch {
+            print("SHOT FAIL: \(error)")
+            exit(1)
+        }
+    }
 }
 
 /// 自测模式常量
@@ -169,6 +243,18 @@ enum SelfTest {
 
     static let openForm = Notification.Name("todoMenu.selftest.openForm")
     static let closeForm = Notification.Name("todoMenu.selftest.closeForm")
+}
+
+/// 截图模式常量（--shot <输出路径>）
+enum Shot {
+    static var outputPath: String? {
+        guard let i = CommandLine.arguments.firstIndex(of: "--shot"),
+              i + 1 < CommandLine.arguments.count else { return nil }
+        return CommandLine.arguments[i + 1]
+    }
+
+    static let dataURL = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("todomenu-shot.json")
 }
 
 extension Notification.Name {
