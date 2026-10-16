@@ -129,12 +129,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             step(base) {
                 NotificationCenter.default.post(name: SelfTest.openForm, object: nil)
             }
+            if round == 0 {
+                // 打开明细输入：表单多出 TextEditor，验证弹层尺寸同步
+                step(base + 0.2) {
+                    NotificationCenter.default.post(name: SelfTest.toggleNotes, object: nil)
+                }
+            }
             step(base + 0.4) { [weak self] in
                 print("SIZE 表单展开 #\(round) = \(self?.popover?.contentSize.height ?? -1)")
             }
             step(base + 0.5) { [weak self] in
                 self?.store.add(
                     title: "selftest-\(round)",
+                    notes: round == 0 ? "要点一\n要点二" : "",
                     deadline: round == 1 ? Date() : nil,
                     contact: "tester"
                 )
@@ -181,11 +188,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tomorrow = cal.date(byAdding: .day, value: 1, to: now) ?? now
         let tomorrow10 = cal.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow) ?? tomorrow
 
-        store.add(title: "评审团队 PR", deadline: nil, contact: "赵六")
-        store.add(title: "和设计对齐新图标", deadline: tomorrow10, contact: "李四")
-        store.add(title: "写周报", deadline: today18, contact: "张三")
-        store.add(title: "提交报销单", deadline: yesterday, contact: "王五")
-        store.add(title: "整理项目 Roadmap", deadline: nil, contact: "")
+        store.add(title: "评审团队 PR", notes: "", deadline: nil, contact: "赵六")
+        store.add(
+            title: "和设计对齐新图标",
+            notes: "领导点评：整体偏重，图标线宽降一档，状态色只用红/橙",
+            deadline: tomorrow10,
+            contact: "李四"
+        )
+        store.add(title: "写周报", notes: "", deadline: today18, contact: "张三")
+        store.add(title: "提交报销单", notes: "", deadline: yesterday, contact: "王五")
+        store.add(title: "整理项目 Roadmap", notes: "", deadline: nil, contact: "")
         if let last = store.todos.last {
             store.toggleDone(last.id) // 展示已完成样式
         }
@@ -243,6 +255,7 @@ enum SelfTest {
 
     static let openForm = Notification.Name("todoMenu.selftest.openForm")
     static let closeForm = Notification.Name("todoMenu.selftest.closeForm")
+    static let toggleNotes = Notification.Name("todoMenu.selftest.toggleNotes")
 }
 
 /// 截图模式常量（--shot <输出路径>）

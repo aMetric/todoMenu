@@ -48,6 +48,7 @@ final class TodoStore: ObservableObject {
             ? todos
             : todos.filter {
                 $0.title.localizedCaseInsensitiveContains(q)
+                    || $0.notes.localizedCaseInsensitiveContains(q)
                     || $0.contact.localizedCaseInsensitiveContains(q)
             }
         return base.sorted { a, b in
@@ -57,13 +58,30 @@ final class TodoStore: ObservableObject {
         }
     }
 
-    func add(title: String, deadline: Date?, contact: String) {
+    func add(title: String, notes: String, deadline: Date?, contact: String) {
         let todo = Todo(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: notes,
             deadline: deadline,
             contact: contact.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         todos.append(todo)
+        save()
+    }
+
+    /// 编辑待办（按 id 更新，保留 createdAt 不变）
+    func update(
+        _ id: UUID,
+        title: String,
+        notes: String,
+        deadline: Date?,
+        contact: String
+    ) {
+        guard let i = todos.firstIndex(where: { $0.id == id }) else { return }
+        todos[i].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        todos[i].notes = notes
+        todos[i].deadline = deadline
+        todos[i].contact = contact.trimmingCharacters(in: .whitespacesAndNewlines)
         save()
     }
 

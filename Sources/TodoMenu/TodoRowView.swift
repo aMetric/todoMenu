@@ -79,6 +79,9 @@ struct TodoRowView: View {
 
     private var tooltip: String {
         var lines = ["名称：\(todo.title)"]
+        if !todo.notes.isEmpty {
+            lines.append("明细：\(todo.notes)")
+        }
         if let deadline = todo.deadline {
             lines.append("截止时间：\(Formatters.fullDateTime.string(from: deadline))")
         } else {

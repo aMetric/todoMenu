@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 新增待办表单：名称（必填）、截止时间（可留空）、对接人（选填）。
+/// 新增待办表单：名称（必填）、明细（选填，多行）、截止时间（可留空）、对接人（选填）。
 /// 新增时间由系统自动记录，无需填写。
 struct AddTodoView: View {
     @EnvironmentObject private var store: TodoStore
@@ -8,6 +8,8 @@ struct AddTodoView: View {
 
     @State private var title = ""
     @State private var contact = ""
+    @State private var hasNotes = false
+    @State private var notes = ""
     @State private var hasDeadline = false
     @State private var deadline = AddTodoView.defaultDeadline()
 
@@ -20,6 +22,34 @@ struct AddTodoView: View {
             TextField("名称（必填）", text: $title)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
+
+            Toggle(isOn: $hasNotes) {
+                Text("添加明细")
+                    .font(.system(size: 12))
+            }
+            .toggleStyle(.checkbox)
+
+            if hasNotes {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $notes)
+                        .font(.system(size: 12))
+                        .scrollContentBackground(.hidden)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Color(nsColor: .controlBackgroundColor),
+                                              lineWidth: 1)
+                        )
+                        .frame(height: 62)
+                    if notes.isEmpty {
+                        Text("记录要点 / 原话，可多行…")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 7)
+                            .allowsHitTesting(false)
+                    }
+                }
+            }
 
             Toggle(isOn: $hasDeadline) {
                 Text("设置截止时间")
@@ -51,6 +81,7 @@ struct AddTodoView: View {
                 Button("添加") {
                     store.add(
                         title: title,
+                        notes: hasNotes ? notes : "",
                         deadline: hasDeadline ? deadline : nil,
                         contact: contact
                     )
@@ -61,6 +92,16 @@ struct AddTodoView: View {
             }
         }
         .padding(12)
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleNotes)) { _ in
+            guard SelfTest.isEnabled else { return }
+            hasNotes.toggle()
+        }
+        .onChange(of: hasNotes) { _, _ in
+            // 明细开关影响表单高度，通知外壳同步弹层大小
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .popoverSizeDidChange, object: nil)
+            }
+        }
         .onChange(of: hasDeadline) { _, _ in
             // 截止时间开关影响表单高度，通知外壳同步弹层大小
             DispatchQueue.main.async {
