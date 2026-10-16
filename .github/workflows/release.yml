@@ -51,11 +51,12 @@ jobs:
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/TodoMenu.app/Contents/Info.plist)
           DMG="TodoMenu-${VERSION}-macOS14+.dmg"
           STAGING=build/dmg-staging
-          rm -rf "$STAGING" build/*.dmg
+          rm -rf "$STAGING"
           mkdir -p "$STAGING"
           cp -R build/TodoMenu.app "$STAGING/"
           ln -s /Applications "$STAGING/Applications"
-          hdiutil create -volname "TodoMenu" -srcfolder "$STAGING" -ov -format UDZO "build/${DMG}"
+          # 输出到仓库根目录，与发布步骤的引用路径保持一致
+          hdiutil create -volname "TodoMenu" -srcfolder "$STAGING" -ov -format UDZO "${DMG}"
           echo "DMG=${DMG}" >> "${GITHUB_ENV}"
 
       - name: 发布 / 更新 Release
