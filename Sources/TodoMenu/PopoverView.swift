@@ -182,6 +182,15 @@ struct PopoverView: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer()
+            Toggle(isOn: Binding(
+                get: { LaunchAtLogin.isEnabled },
+                set: { _ in LaunchAtLogin.toggle() }
+            )) {
+                Text("自启")
+                    .font(.system(size: 11))
+            }
+            .toggleStyle(.checkbox)
+            .help("登录 macOS 后自动启动 TodoMenu")
             Button("退出") {
                 NSApplication.shared.terminate(nil)
             }

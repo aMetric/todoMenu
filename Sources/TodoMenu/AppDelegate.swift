@@ -51,6 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let shotPath = Shot.outputPath {
             runShotIfNeeded(shotPath)
+        } else if LaunchAtLoginCLI.isEnabled {
+            // 维护参数：切换开机自启注册后立即退出（供安装脚本/终端验证用）
+            let newState = LaunchAtLogin.toggle()
+            print("AUTOLAUNCH \(newState ? "ON" : "OFF")")
+            NSApp.terminate(nil)
         } else {
             runSelfTestIfNeeded()
         }
@@ -302,6 +307,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ok = false
             }
 
+            // ⑥ 自启开关（mock）：翻转 → 状态生效，再翻回避免污染后续
+            UserDefaults.standard.removeObject(forKey: SelfTest.mockAutoLaunchKey)
+            if LaunchAtLogin.isEnabled != false {
+                print("AUTOLAUNCH FAIL: mock 初始态应为 false")
+                ok = false
+            }
+            LaunchAtLogin.toggle()
+            if LaunchAtLogin.isEnabled != true {
+                print("AUTOLAUNCH FAIL: 翻转后应为 true")
+                ok = false
+            }
+            LaunchAtLogin.toggle()
+            if LaunchAtLogin.isEnabled != false {
+                print("AUTOLAUNCH FAIL: 回翻后应为 false")
+                ok = false
+            }
+
             if ok {
                 print("SORT OK")
             } else {
@@ -414,6 +436,10 @@ enum SelfTest {
     static let setFormTitle = Notification.Name("todoMenu.selftest.setFormTitle")
     static let toggleDeadline = Notification.Name("todoMenu.selftest.toggleDeadline")
     static let saveForm = Notification.Name("todoMenu.selftest.saveForm")
+    static let toggleAutoLaunch = Notification.Name("todoMenu.selftest.toggleAutoLaunch")
+
+    /// selftest 下自启开关的 mock 存储 key（CI 无头环境不动真实登录项）
+    static let mockAutoLaunchKey = "todoMenu.selftest.autoLaunchMock"
 }
 
 /// 截图模式常量（--shot <输出路径>）
@@ -426,6 +452,13 @@ enum Shot {
 
     static let dataURL = URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("todomenu-shot.json")
+}
+
+/// 维护参数常量（--toggle-autalaunch：切换开机自启后退出）
+enum LaunchAtLoginCLI {
+    static var isEnabled: Bool {
+        CommandLine.arguments.contains("--toggle-autalaunch")
+    }
 }
 
 extension Notification.Name {
