@@ -40,8 +40,9 @@ final class TodoStore: ObservableObject {
     /// 未完成数量（面板底部展示）
     var activeCount: Int { todos.filter { !$0.done }.count }
 
-    /// 按搜索词过滤（匹配名称与对接人，不区分大小写）。
-    /// 排序：未完成在前（新的在前），已完成在后。
+    /// 按搜索词过滤（匹配名称、明细与对接人，不区分大小写）。
+    /// 排序（紧急度优先）：逾期 > 今天到期 > 未来有截止时间 > 无截止时间 > 已完成，
+    /// 同档内新的在前。用户点开面板想知道的是"现在最该做哪个"。
     func filtered(_ query: String) -> [Todo] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = q.isEmpty
@@ -51,8 +52,11 @@ final class TodoStore: ObservableObject {
                     || $0.notes.localizedCaseInsensitiveContains(q)
                     || $0.contact.localizedCaseInsensitiveContains(q)
             }
+        let now = Date()
         return base.sorted { a, b in
-            if a.done != b.done { return !a.done }
+            let ra = a.rank(now: now)
+            let rb = b.rank(now: now)
+            if ra != rb { return ra < rb }
             if a.createdAt != b.createdAt { return a.createdAt > b.createdAt }
             return a.id.uuidString < b.id.uuidString
         }

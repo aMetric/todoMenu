@@ -46,6 +46,18 @@ struct Todo: Identifiable, Codable, Equatable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         done = try c.decode(Bool.self, forKey: .done)
     }
+
+    // MARK: - 紧急度排序
+
+    /// 紧急度档位：数值越小越靠前。
+    /// 逾期(0) > 今天到期(1) > 未来有截止时间(2) > 无截止时间(3) > 已完成(4)
+    func rank(now: Date = Date()) -> Int {
+        if done { return 4 }
+        guard let deadline else { return 3 }
+        if deadline < now { return 0 }
+        if Calendar.current.isDateInToday(deadline) { return 1 }
+        return 2
+    }
 }
 
 /// 统一的日期格式

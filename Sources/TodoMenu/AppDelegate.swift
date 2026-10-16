@@ -155,6 +155,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        step(6.8) { [weak self] in
+            guard let self else { exit(1) }
+            var ok = true
+
+            // ① rank 档位：固定参考时钟（今天正午）逐项断言
+            let cal = Calendar.current
+            let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
+            func d(_ hours: Double) -> Date { noon.addingTimeInterval(hours * 3600) }
+            let rankCases: [(Date?, Bool, Int, String)] = [
+                (d(-1), false, 0, "逾期"),
+                (d(6), false, 1, "今天到期"),
+                (d(30), false, 2, "未来"),
+                (nil, false, 3, "无期限"),
+                (d(-1), true, 4, "已完成（逾期期限也应压底）"),
+            ]
+            for (deadline, done, want, name) in rankCases {
+                let todo = Todo(title: name, deadline: deadline, done: done)
+                let got = todo.rank(now: noon)
+                if got != want {
+                    print("SORT FAIL: \(name) rank=\(got) want=\(want)")
+                    ok = false
+                }
+            }
+
+            // ② filtered() 排序接线：真实 store 按紧急度输出
+            for t in self.store.todos { self.store.delete(t.id) }
+            let now = Date()
+            self.store.add(title: "逾期A", notes: "", deadline: now.addingTimeInterval(-3600), contact: "")
+            self.store.add(title: "无期限B", notes: "", deadline: nil, contact: "")
+            self.store.add(title: "未来C", notes: "", deadline: now.addingTimeInterval(48 * 3600), contact: "")
+            let expected = ["逾期A", "未来C", "无期限B"]
+            let actual = self.store.filtered("").map(\.title)
+            if actual != expected {
+                print("SORT FAIL: order=\(actual) want=\(expected)")
+                ok = false
+            }
+            // 完成后沉底
+            if let first = self.store.filtered("").first {
+                self.store.toggleDone(first.id)
+            }
+            let afterDone = self.store.filtered("").map(\.title)
+            if afterDone != ["未来C", "无期限B", "逾期A"] {
+                print("SORT FAIL: done-last order=\(afterDone)")
+                ok = false
+            }
+            if ok {
+                print("SORT OK")
+            } else {
+                exit(1)
+            }
+        }
+
         step(7.5) { [weak self] in
             guard let self else { exit(1) }
             let distinct = Set(selftestHeights.map { Int($0) })

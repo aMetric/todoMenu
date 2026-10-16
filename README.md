@@ -29,6 +29,7 @@ A **"TODO"** icon lives in your menu bar; click it to open a tiny todo panel. **
 - ➕ 新增待办：名称（必填）、明细（选填，多行：会议要点 / 领导原话）、截止时间（可留空）、对接人（选填）；**新增时间自动记录**
 - 👆 鼠标悬停某条时展示完整信息（名称 / 明细 / 截止时间 / 对接人 / 新增时间）
 - ⏰ 截止时间已过标红、当天标橙；勾选完成后划线置灰
+- 🔥 列表按紧急度排序：逾期 > 今天到期 > 未来有截止时间 > 无截止时间 > 已完成
 - 💾 数据本地存储：`~/Library/Application Support/TodoMenu/todos.json`（带版本号，损坏自动备份重建）
 
 ## 安装 Installation
