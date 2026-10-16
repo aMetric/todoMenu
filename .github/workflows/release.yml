@@ -1,11 +1,16 @@
 name: Release
 
 # 推送 v* 标签时自动构建并发布 GitHub Release；
-# 也可在 Actions 页面手动触发（workflow_dispatch）。
+# 也可在 Actions 页面手动触发（workflow_dispatch，可指定 tag）。
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "要发布的 tag（留空则使用触发的 ref）"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -39,27 +44,38 @@ jobs:
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/TodoMenu.app/Contents/Info.plist)
           ZIP="TodoMenu-${VERSION}-macOS14+.zip"
           (cd build && zip -r "${ZIP}" TodoMenu.app && mv "${ZIP}" ..)
-          echo "ZIP_PATH=${ZIP}" >> "${GITHUB_ENV}"
+          echo "ZIP=${ZIP}" >> "${GITHUB_ENV}"
 
-      - name: 发布到 Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "TodoMenu ${GITHUB_REF_NAME}"
-          files: "${ZIP_PATH}"
-          generate_release_notes: true
-          body: |
-            ## 下载 Download
-
-            - **`${ZIP_PATH}`**：Universal 二进制（Apple Silicon + Intel），macOS 14+
-            - 解压后拖入 `/Applications`；首次打开如被拦截，请**右键 → 打开**
-
-            ## 数据与隐私
-
-            - 数据仅存本机：`~/Library/Application Support/TodoMenu/todos.json`，无任何网络请求
-            - 当前为 ad-hoc 签名（未公证）；正式公证需 Apple 开发者账号，后续接入
-
-            ## 变更记录
-
-            详见 [CHANGELOG.md](https://github.com/aMetric/todoMenu/blob/main/CHANGELOG.md)
+      - name: 发布 / 更新 Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+
+          cat > /tmp/notes.md <<'EOF'
+          ## 下载 Download
+
+          - 见下方附件 `TodoMenu-*-macOS14+.zip`：Universal 二进制（Apple Silicon + Intel），macOS 14+
+          - 解压后拖入 `/Applications`；首次打开如被拦截，请**右键 → 打开**
+
+          ## 数据与隐私
+
+          - 数据仅存本机：`~/Library/Application Support/TodoMenu/todos.json`，无任何网络请求
+          - 当前为 ad-hoc 签名（未公证）；正式公证需 Apple 开发者账号，后续接入
+
+          ## 变更记录
+
+          详见 [CHANGELOG.md](https://github.com/aMetric/todoMenu/blob/main/CHANGELOG.md)
+          EOF
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release 已存在，更新标题、说明与附件"
+            gh release edit "$TAG" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            echo "创建新 Release"
+            gh release create "$TAG" "$ZIP" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
+          fi
