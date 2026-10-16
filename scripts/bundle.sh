@@ -33,9 +33,9 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'PLIST'
 	<key>CFBundleIdentifier</key>
 	<string>com.todomenu.app</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.1</string>
+	<string>0.3.0</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleExecutable</key>

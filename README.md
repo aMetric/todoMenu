@@ -13,9 +13,9 @@
 
 </div>
 
-常驻菜单栏的 **"TODO"** 图标，点击弹出极简待办面板。**数据只存在本机，无账号、无网络。** 原生 SwiftUI 实现，包体约 400KB。
+常驻菜单栏的勾选图标，点击弹出极简待办面板。**数据只存在本机，无账号、无网络。** 原生 SwiftUI 实现，包体约 400KB。
 
-A **"TODO"** icon lives in your menu bar; click it to open a tiny todo panel. **Local-only. No account. No network.** Native SwiftUI, ~400KB.
+A checkmark icon lives in your menu bar; click it to open a tiny todo panel. **Local-only. No account. No network.** Native SwiftUI, ~400KB.
 
 ## 预览 Preview
 
@@ -117,8 +117,9 @@ CHANGELOG.md                  # 变更日志
 
 ## Roadmap
 
-- v1.1：编辑待办、开机自启、系统通知提醒、导出
-- v1.2：优先级 / 标签、可选的 iCloud 同步、App 图标与 DMG
+- v0.4：系统通知提醒（到点 / 逾期 / 稍后提醒）、截止时间快捷预设、全局快捷键快速新增
+- v1.1：导出 / 导入、备份恢复、菜单栏图标主题
+- v1.2：优先级 / 标签、可选的 iCloud 同步、App 图标
 
 欢迎在 [Issues](../../issues) 提需求投票。
 
