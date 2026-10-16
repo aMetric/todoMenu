@@ -50,6 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           TAG="${{ github.ref_name }}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
             TAG="${{ github.event.inputs.tag }}"
@@ -71,11 +72,22 @@ jobs:
           详见 [CHANGELOG.md](https://github.com/aMetric/todoMenu/blob/main/CHANGELOG.md)
           EOF
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release 已存在，更新标题、说明与附件"
-            gh release edit "$TAG" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
-            gh release upload "$TAG" "$ZIP" --clobber
-          else
-            echo "创建新 Release"
+          # GitHub 删除标签会连带删除 Release，且该清理是异步的：
+          # 标签刚重建时创建的 Release 可能随后被清掉，因此创建后必须校验并重试。
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "Release 已存在，更新标题、说明与附件"
+              gh release edit "$TAG" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
+              gh release upload "$TAG" "$ZIP" --clobber
+              break
+            fi
+            echo "第 $attempt 次尝试创建 Release"
             gh release create "$TAG" "$ZIP" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
-          fi
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "✅ Release 创建成功"
+              break
+            fi
+            echo "⚠️ 创建后未找到 Release（可能被标签清理竞态删除），10 秒后重试"
+            sleep 10
+          done
+          gh release view "$TAG"
