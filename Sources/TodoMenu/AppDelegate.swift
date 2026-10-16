@@ -11,7 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sizeObserver: NSObjectProtocol?
     private var selftestHeights: [CGFloat] = []
     private var editingTarget: Todo?
-    private var storeObserver: NSObjectProtocol?
+
+    /// 菜单栏图标：SF Symbols 模板图标（自动适配明暗模式）。
+    /// 想换风格改这一个常量即可，候选见 README。
+    static let menubarSymbol = "checkmark.circle"
 
     private lazy var store: TodoStore = {
         if SelfTest.isEnabled {
@@ -36,13 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupStatusItem()
         setupPopover()
-        // 菜单栏标题跟随未完成数量：TODO / TODO 3
-        updateStatusTitle()
-        storeObserver = NotificationCenter.default.addObserver(
-            forName: .todosDidChange, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.updateStatusTitle()
-        }
         // 内容变化时（表单开合、增删改查、搜索过滤）同步弹层尺寸
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .popoverSizeDidChange, object: nil, queue: .main
@@ -66,19 +62,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
-            button.title = "TODO"
-            button.font = NSFont.menuBarFont(ofSize: 0)
+            // 模板图标：自动适配亮/暗菜单栏，与系统图标观感一致
+            let icon = NSImage(
+                systemSymbolName: Self.menubarSymbol,
+                accessibilityDescription: "TodoMenu"
+            )
+            icon?.isTemplate = true
+            button.image = icon
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem = item
-    }
-
-    /// 菜单栏标题：有未完成时显示数量（TODO 3），清零恢复纯 TODO
-    private func updateStatusTitle() {
-        let count = store.activeCount
-        statusItem?.button?.title = count > 0 ? "TODO \(count)" : "TODO"
     }
 
     // MARK: - 弹层
@@ -289,21 +284,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ok = false
             }
 
-            // ⑤ 菜单栏计数：标题跟随未完成数量
-            let titleNow = self.statusItem?.button?.title ?? ""
-            let wantCount = self.store.activeCount
-            let wantTitle = wantCount > 0 ? "TODO \(wantCount)" : "TODO"
-            if titleNow != wantTitle {
-                print("TITLE FAIL: \(titleNow) want=\(wantTitle)")
+            // ⑤ 菜单栏图标：SF Symbols 模板图标常量（结构校验，title 断言已随数字移除）
+            if AppDelegate.menubarSymbol.isEmpty {
+                print("TITLE FAIL: menubarSymbol 未配置")
                 ok = false
             }
-            // 全部完成后恢复纯 TODO
-            for t in self.store.todos where !t.done {
-                self.store.toggleDone(t.id)
-            }
-            let clearedTitle = self.statusItem?.button?.title ?? ""
-            if clearedTitle != "TODO" {
-                print("TITLE FAIL: 清零后=\(clearedTitle)")
+            if self.statusItem?.button?.image == nil {
+                print("TITLE FAIL: 菜单栏未设置图标")
                 ok = false
             }
 
