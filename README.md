@@ -19,7 +19,7 @@ A checkmark icon lives in your menu bar; click it to open a tiny todo panel. **L
 
 ## 预览 Preview
 
-![TodoMenu 主界面](docs/shots/panel.png)
+<p><img src="docs/shots/panel.png" width="360" alt="TodoMenu 主界面"></p>
 
 点菜单栏勾选图标即开面板：列表按**紧急度排序**（逾期红、今天橙），底部摘要随时告诉你"几条待办、几条逾期"。
 
@@ -27,25 +27,25 @@ A checkmark icon lives in your menu bar; click it to open a tiny todo panel. **L
 
 ### 秒记一条：Cmd+N 或点 ➕
 
-![新增待办](docs/shots/form.png)
+<p><img src="docs/shots/form.png" width="340" alt="新增待办"></p>
 
 表单自动聚焦名称，**Enter 保存、Esc 收起**。"添加明细"可展开多行输入——开会时领导点评的几句话，原样记下来。
 
 ### 编辑：悬停行出 ✏️
 
-![编辑待办](docs/shots/edit.png)
+<p><img src="docs/shots/edit.png" width="340" alt="编辑待办"></p>
 
 改名称、改截止时间、补明细、换对接人，原条目原地更新（新增时间不变）。
 
 ### 误删有后悔药
 
-![撤销](docs/shots/undo.png)
+<p><img src="docs/shots/undo.png" width="340" alt="撤销"></p>
 
 删除或勾选完成后，底部出现 **撤销条（4 秒内有效）**，点"撤销"或按 **Cmd+Z** 即恢复。
 
 ### 空状态引导
 
-![空状态](docs/shots/empty.png)
+<p><img src="docs/shots/empty.png" width="340" alt="空状态"></p>
 
 第一次打开不迷路：一行提示讲完全部操作。
 
