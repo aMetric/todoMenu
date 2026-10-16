@@ -244,6 +244,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ok = false
             }
 
+            // ④ 撤销流：删除一条 → 快照存在且文案正确 → undo 恢复
+            let victim = self.store.filtered("").first!
+            self.store.delete(victim.id)
+            if self.store.lastSnapshot == nil {
+                print("UNDO FAIL: 删除后无快照")
+                ok = false
+            }
+            if self.store.filtered("").contains(where: { $0.id == victim.id }) {
+                print("UNDO FAIL: 删除未生效")
+                ok = false
+            }
+            let label = self.store.deletedLabel
+            if !label.contains(victim.title) || !label.contains("已删除") {
+                print("UNDO FAIL: label=\(label)")
+                ok = false
+            }
+            self.store.undo()
+            if !self.store.todos.contains(where: { $0.id == victim.id }) {
+                print("UNDO FAIL: 撤销未恢复")
+                ok = false
+            }
+            if self.store.lastSnapshot != nil {
+                print("UNDO FAIL: 撤销后快照未清空")
+                ok = false
+            }
+
             if ok {
                 print("SORT OK")
             } else {

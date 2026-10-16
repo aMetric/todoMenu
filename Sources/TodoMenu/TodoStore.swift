@@ -5,6 +5,8 @@ import Combine
 /// 数据文件：~/Library/Application Support/TodoMenu/todos.json
 final class TodoStore: ObservableObject {
     @Published private(set) var todos: [Todo] = []
+    /// 最近一次破坏性操作（删除/完成切换）前的列表快照，供撤销
+    @Published private(set) var lastSnapshot: [Todo]?
 
     private let fileURL: URL
     private static let currentVersion = 1
@@ -39,6 +41,27 @@ final class TodoStore: ObservableObject {
 
     /// 未完成数量（面板底部展示）
     var activeCount: Int { todos.filter { !$0.done }.count }
+
+    /// 撤销条文案
+    var deletedLabel: String {
+        guard let snapshot = lastSnapshot else { return "" }
+        let removed = snapshot.filter { old in todos.first { $0.id == old.id } == nil }
+        if !removed.isEmpty {
+            return "已删除「\(removed.first?.title ?? "")」"
+        }
+        let toggled = snapshot.filter { old in
+            todos.first { $0.id == old.id }?.done != old.done
+        }
+        if !toggled.isEmpty {
+            return "已\(toggled.first?.done == true ? "恢复" : "完成")「\(toggled.first?.title ?? "")」"
+        }
+        return "已修改"
+    }
+
+    /// 撤销条过期：清掉快照（不改变 todos）
+    func expireUndo() {
+        lastSnapshot = nil
+    }
 
     /// 按搜索词过滤（匹配名称、明细与对接人，不区分大小写）。
     /// 排序（紧急度优先）：逾期 > 今天到期 > 未来有截止时间 > 无截止时间 > 已完成，
@@ -91,12 +114,22 @@ final class TodoStore: ObservableObject {
 
     func toggleDone(_ id: UUID) {
         guard let i = todos.firstIndex(where: { $0.id == id }) else { return }
+        lastSnapshot = todos
         todos[i].done.toggle()
         save()
     }
 
     func delete(_ id: UUID) {
+        lastSnapshot = todos
         todos.removeAll { $0.id == id }
+        save()
+    }
+
+    /// 撤销最近一次删除/完成操作（快照恢复，快照清空）
+    func undo() {
+        guard let snapshot = lastSnapshot else { return }
+        todos = snapshot
+        lastSnapshot = nil
         save()
     }
 

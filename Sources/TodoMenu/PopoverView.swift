@@ -133,13 +133,30 @@ struct PopoverView: View {
         .frame(height: 140)
     }
 
-    // MARK: - 底部：数量 + 退出
+    // MARK: - 底部：数量 + 撤销 + 退出
+
+    @State private var undoTimer: Timer?
 
     private var footer: some View {
         HStack {
-            Text("\(store.activeCount) 条待办")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+            if store.lastSnapshot != nil {
+                HStack(spacing: 4) {
+                    Text(store.deletedLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Button("撤销") {
+                        store.undo()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tint)
+                }
+            } else {
+                Text("\(store.activeCount) 条待办")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
             Spacer()
             Button("退出") {
                 NSApplication.shared.terminate(nil)
@@ -150,6 +167,30 @@ struct PopoverView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        // Cmd+Z 撤销（隐藏热键）
+        .background(
+            Button("撤销") {
+                store.undo()
+            }
+            .keyboardShortcut("z", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        )
+        // 撤销条 4 秒后自动消失（快照过期）
+        .onChange(of: store.lastSnapshot != nil) { _, shown in
+            undoTimer?.invalidate()
+            if shown {
+                undoTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: false) { _ in
+                    Task { @MainActor in
+                        store.expireUndo()
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            undoTimer?.invalidate()
+        }
     }
 
     /// 内容尺寸可能变化时，通知外壳同步弹层大小
