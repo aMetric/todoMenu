@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sizeObserver: NSObjectProtocol?
     private var selftestHeights: [CGFloat] = []
     private var editingTarget: Todo?
+    private var storeObserver: NSObjectProtocol?
 
     private lazy var store: TodoStore = {
         if SelfTest.isEnabled {
@@ -35,6 +36,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupStatusItem()
         setupPopover()
+        // 菜单栏标题跟随未完成数量：TODO / TODO 3
+        updateStatusTitle()
+        storeObserver = NotificationCenter.default.addObserver(
+            forName: .todosDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.updateStatusTitle()
+        }
         // 内容变化时（表单开合、增删改查、搜索过滤）同步弹层尺寸
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .popoverSizeDidChange, object: nil, queue: .main
@@ -60,6 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem = item
+    }
+
+    /// 菜单栏标题：有未完成时显示数量（TODO 3），清零恢复纯 TODO
+    private func updateStatusTitle() {
+        let count = store.activeCount
+        statusItem?.button?.title = count > 0 ? "TODO \(count)" : "TODO"
     }
 
     // MARK: - 弹层
@@ -270,6 +284,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ok = false
             }
 
+            // ⑤ 菜单栏计数：标题跟随未完成数量
+            let titleNow = self.statusItem?.button?.title ?? ""
+            let wantCount = self.store.activeCount
+            let wantTitle = wantCount > 0 ? "TODO \(wantCount)" : "TODO"
+            if titleNow != wantTitle {
+                print("TITLE FAIL: \(titleNow) want=\(wantTitle)")
+                ok = false
+            }
+            // 全部完成后恢复纯 TODO
+            for t in self.store.todos where !t.done {
+                self.store.toggleDone(t.id)
+            }
+            let clearedTitle = self.statusItem?.button?.title ?? ""
+            if clearedTitle != "TODO" {
+                print("TITLE FAIL: 清零后=\(clearedTitle)")
+                ok = false
+            }
+
             if ok {
                 print("SORT OK")
             } else {
@@ -399,4 +431,7 @@ enum Shot {
 extension Notification.Name {
     /// 弹层内容发生变化，需要重新计算尺寸
     static let popoverSizeDidChange = Notification.Name("todoMenu.popoverSizeDidChange")
+
+    /// 待办数据已持久化（菜单栏计数等外壳元素跟随刷新）
+    static let todosDidChange = Notification.Name("todoMenu.todosDidChange")
 }

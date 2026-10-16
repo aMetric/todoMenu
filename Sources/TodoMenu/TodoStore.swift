@@ -63,6 +63,12 @@ final class TodoStore: ObservableObject {
         lastSnapshot = nil
     }
 
+    /// 逾期未完成数量（底部展示：N 条待办，M 条逾期）
+    var overdueCount: Int {
+        let now = Date()
+        return todos.filter { !$0.done && $0.deadline.map { $0 < now } == true }.count
+    }
+
     /// 按搜索词过滤（匹配名称、明细与对接人，不区分大小写）。
     /// 排序（紧急度优先）：逾期 > 今天到期 > 未来有截止时间 > 无截止时间 > 已完成，
     /// 同档内新的在前。用户点开面板想知道的是"现在最该做哪个"。
@@ -158,5 +164,7 @@ final class TodoStore: ObservableObject {
             return
         }
         try? data.write(to: fileURL, options: .atomic)
+        // 通知外壳（菜单栏计数）数据已变化
+        NotificationCenter.default.post(name: .todosDidChange, object: nil)
     }
 }

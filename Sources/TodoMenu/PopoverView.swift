@@ -137,6 +137,24 @@ struct PopoverView: View {
 
     @State private var undoTimer: Timer?
 
+    /// 行动导向的底部摘要：5 条待办，2 条逾期（或 3 条待办 / 1 条今天到期）
+    private var footerSummary: String {
+        let active = store.activeCount
+        if active == 0 { return "全部完成" }
+        let overdue = store.overdueCount
+        if overdue > 0 {
+            return "\(active) 条待办，\(overdue) 条逾期"
+        }
+        let todayCount = store.todos.filter { todo in
+            guard !todo.done, let d = todo.deadline else { return false }
+            return Calendar.current.isDateInToday(d)
+        }.count
+        if todayCount > 0 {
+            return "\(active) 条待办，\(todayCount) 条今天到期"
+        }
+        return "\(active) 条待办"
+    }
+
     private var footer: some View {
         HStack {
             if store.lastSnapshot != nil {
@@ -153,7 +171,7 @@ struct PopoverView: View {
                     .foregroundStyle(.tint)
                 }
             } else {
-                Text("\(store.activeCount) 条待办")
+                Text(footerSummary)
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
