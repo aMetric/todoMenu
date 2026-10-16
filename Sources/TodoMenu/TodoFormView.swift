@@ -5,6 +5,7 @@ import SwiftUI
 struct TodoFormView: View {
     @EnvironmentObject private var store: TodoStore
     var editing: Todo?
+    var focusTitle: FocusState<Bool>.Binding
     var onDone: () -> Void
 
     @State private var title = ""
@@ -23,6 +24,7 @@ struct TodoFormView: View {
             TextField("名称（必填）", text: $title)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
+                .focused(focusTitle)
 
             Toggle(isOn: $hasNotes) {
                 Text("添加明细")
@@ -79,6 +81,7 @@ struct TodoFormView: View {
             HStack {
                 Spacer()
                 Button("取消", action: onDone)
+                    .keyboardShortcut(.cancelAction) // Esc 收起表单
                 Button(editing == nil ? "添加" : "保存") {
                     submit()
                 }
@@ -95,6 +98,10 @@ struct TodoFormView: View {
                 hasNotes = !editing.notes.isEmpty
                 hasDeadline = editing.deadline != nil
                 deadline = editing.deadline ?? TodoFormView.defaultDeadline()
+            }
+            // 表单打开即聚焦标题（Enter 保存，Esc 收起），秒记不打断
+            DispatchQueue.main.async {
+                focusTitle.wrappedValue = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleNotes)) { _ in

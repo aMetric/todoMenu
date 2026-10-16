@@ -7,6 +7,7 @@ struct PopoverView: View {
     @State private var searchText = ""
     @State private var showAddForm = false
     @State private var editingTodo: Todo?
+    @FocusState private var titleFieldFocused: Bool
 
     private let rowHeight: CGFloat = 44
     private let maxVisibleRows = 5
@@ -34,6 +35,18 @@ struct PopoverView: View {
             guard SelfTest.isEnabled, let target = note.object as? Todo else { return }
             editingTodo = target
         }
+        // 键盘流：Cmd+N 打开新增表单（挂在整个面板上，列表态即可触发）
+        .background(
+            Button("新增") {
+                if editingTodo == nil, !showAddForm {
+                    showAddForm = true
+                }
+            }
+            .keyboardShortcut("n", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        )
         .onChange(of: showAddForm) { _, _ in notifySizeChange() }
         .onChange(of: editingTodo) { _, _ in notifySizeChange() }
         .onChange(of: searchText) { _, _ in notifySizeChange() }
@@ -69,13 +82,21 @@ struct PopoverView: View {
     @ViewBuilder
     private var content: some View {
         if let editing = editingTodo {
-            TodoFormView(editing: editing, onDone: {
-                editingTodo = nil
-            })
+            TodoFormView(
+                editing: editing,
+                focusTitle: $titleFieldFocused,
+                onDone: {
+                    editingTodo = nil
+                }
+            )
         } else if showAddForm {
-            TodoFormView(editing: nil, onDone: {
-                showAddForm = false
-            })
+            TodoFormView(
+                editing: nil,
+                focusTitle: $titleFieldFocused,
+                onDone: {
+                    showAddForm = false
+                }
+            )
         }
         let items = store.filtered(searchText)
         if items.isEmpty {
