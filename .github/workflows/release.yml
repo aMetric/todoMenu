@@ -46,6 +46,18 @@ jobs:
           (cd build && zip -r "${ZIP}" TodoMenu.app && mv "${ZIP}" ..)
           echo "ZIP=${ZIP}" >> "${GITHUB_ENV}"
 
+      - name: 制作 DMG（双击即可拖拽安装）
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/TodoMenu.app/Contents/Info.plist)
+          DMG="TodoMenu-${VERSION}-macOS14+.dmg"
+          STAGING=build/dmg-staging
+          rm -rf "$STAGING" build/*.dmg
+          mkdir -p "$STAGING"
+          cp -R build/TodoMenu.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "TodoMenu" -srcfolder "$STAGING" -ov -format UDZO "build/${DMG}"
+          echo "DMG=${DMG}" >> "${GITHUB_ENV}"
+
       - name: 发布 / 更新 Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,10 +69,12 @@ jobs:
           fi
 
           cat > /tmp/notes.md <<'EOF'
-          ## 下载 Download
+          ## 下载 Download（无需编译，开箱即用）
 
-          - 见下方附件 `TodoMenu-*-macOS14+.zip`：Universal 二进制（Apple Silicon + Intel），macOS 14+
-          - 解压后拖入 `/Applications`；首次打开如被拦截，请**右键 → 打开**
+          - **推荐**：下载 `.dmg`，双击打开 → 把 TodoMenu 拖入 Applications 即可
+          - 或下载 `.zip`：解压后把 TodoMenu.app 拖入 `/Applications`
+          - Universal 二进制（Apple Silicon + Intel），macOS 14+
+          - 首次打开如被拦截，请**右键 → 打开**
 
           ## 数据与隐私
 
@@ -78,11 +92,11 @@ jobs:
             if gh release view "$TAG" >/dev/null 2>&1; then
               echo "Release 已存在，更新标题、说明与附件"
               gh release edit "$TAG" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
-              gh release upload "$TAG" "$ZIP" --clobber
+              gh release upload "$TAG" "$ZIP" "$DMG" --clobber
               break
             fi
             echo "第 $attempt 次尝试创建 Release"
-            gh release create "$TAG" "$ZIP" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
+            gh release create "$TAG" "$ZIP" "$DMG" --title "TodoMenu $TAG" --notes-file /tmp/notes.md
             if gh release view "$TAG" >/dev/null 2>&1; then
               echo "✅ Release 创建成功"
               break

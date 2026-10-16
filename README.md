@@ -33,9 +33,14 @@ A **"TODO"** icon lives in your menu bar; click it to open a tiny todo panel. **
 
 ## 安装 Installation
 
-### 下载构建好的应用（推荐）
+### 下载安装包（推荐，无需编译）
 
-前往 [Releases](../../releases) 下载 `TodoMenu-*.zip`，解压后拖入 `/Applications`。
+前往 [Releases](../../releases) 下载最新版：
+
+- **`.dmg`**（推荐）：双击打开，把 TodoMenu 拖入 Applications 即可
+- `.zip`：解压后把 TodoMenu.app 拖入 `/Applications`
+
+两者都是开箱即用的 Universal 二进制（Apple Silicon + Intel），macOS 14+。
 
 > 当前版本使用 ad-hoc 签名（无需 Apple 开发者账号）。首次打开若被拦截，**右键 → 打开**即可。
 
