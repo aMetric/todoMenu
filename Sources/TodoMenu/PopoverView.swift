@@ -125,9 +125,15 @@ struct PopoverView: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 28))
                 .foregroundStyle(.tertiary)
-            Text(searchText.isEmpty ? "暂无待办，点右上角 + 新增" : "没有匹配「\(searchText)」的事项")
+            Text(searchText.isEmpty ? "暂无待办" : "没有匹配「\(searchText)」的事项")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+            if searchText.isEmpty {
+                // 首启微引导：10 秒内能看完的操作提示
+                Text("Enter 保存 · 点圆圈完成 · 悬停可编辑/删除 · Cmd+N 新增")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 140)
