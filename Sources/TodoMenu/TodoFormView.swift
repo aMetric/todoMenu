@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// 新增待办表单：名称（必填）、明细（选填，多行）、截止时间（可留空）、对接人（选填）。
-/// 新增时间由系统自动记录，无需填写。
-struct AddTodoView: View {
+/// 新增 / 编辑待办表单：名称（必填）、明细（选填，多行）、截止时间（可留空）、对接人（选填）。
+/// 新增时间由系统自动记录，无需填写；编辑时保持原新增时间不变。
+struct TodoFormView: View {
     @EnvironmentObject private var store: TodoStore
+    var editing: Todo?
     var onDone: () -> Void
 
     @State private var title = ""
@@ -11,11 +12,11 @@ struct AddTodoView: View {
     @State private var hasNotes = false
     @State private var notes = ""
     @State private var hasDeadline = false
-    @State private var deadline = AddTodoView.defaultDeadline()
+    @State private var deadline = TodoFormView.defaultDeadline()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("新增待办")
+            Text(editing == nil ? "新增待办" : "编辑待办")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
 
@@ -78,23 +79,39 @@ struct AddTodoView: View {
             HStack {
                 Spacer()
                 Button("取消", action: onDone)
-                Button("添加") {
-                    store.add(
-                        title: title,
-                        notes: hasNotes ? notes : "",
-                        deadline: hasDeadline ? deadline : nil,
-                        contact: contact
-                    )
-                    onDone()
+                Button(editing == nil ? "添加" : "保存") {
+                    submit()
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(trimmedTitle.isEmpty)
             }
         }
         .padding(12)
+        .onAppear {
+            if let editing {
+                title = editing.title
+                contact = editing.contact
+                notes = editing.notes
+                hasNotes = !editing.notes.isEmpty
+                hasDeadline = editing.deadline != nil
+                deadline = editing.deadline ?? TodoFormView.defaultDeadline()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleNotes)) { _ in
             guard SelfTest.isEnabled else { return }
             hasNotes.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.saveForm)) { _ in
+            guard SelfTest.isEnabled else { return }
+            submit()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.setFormTitle)) { note in
+            guard SelfTest.isEnabled, let newTitle = note.object as? String else { return }
+            title = newTitle
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleDeadline)) { _ in
+            guard SelfTest.isEnabled else { return }
+            hasDeadline = true
         }
         .onChange(of: hasNotes) { _, _ in
             // 明细开关影响表单高度，通知外壳同步弹层大小
@@ -112,6 +129,27 @@ struct AddTodoView: View {
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 提交表单：编辑则更新原条目（保持 createdAt 不变），否则新增
+    private func submit() {
+        if let editing {
+            store.update(
+                editing.id,
+                title: title,
+                notes: hasNotes ? notes : "",
+                deadline: hasDeadline ? deadline : nil,
+                contact: contact
+            )
+        } else {
+            store.add(
+                title: title,
+                notes: hasNotes ? notes : "",
+                deadline: hasDeadline ? deadline : nil,
+                contact: contact
+            )
+        }
+        onDone()
     }
 
     /// 默认截止时间：明天 18:00

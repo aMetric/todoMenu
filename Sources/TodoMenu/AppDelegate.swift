@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hosting: NSHostingController<AnyView>?
     private var sizeObserver: NSObjectProtocol?
     private var selftestHeights: [CGFloat] = []
+    private var editingTarget: Todo?
 
     private lazy var store: TodoStore = {
         if SelfTest.isEnabled {
@@ -155,6 +156,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // 编辑流：对列表第一行打开编辑表单 → 改标题与截止 → 保存 → 校验
+        step(6.2) { [weak self] in
+            guard let first = self?.store.filtered("").first else { return }
+            self?.editingTarget = first
+            NotificationCenter.default.post(name: SelfTest.editFirstRow, object: first)
+        }
+        step(6.5) { [weak self] in
+            print("SIZE 编辑表单 = \(self?.popover?.contentSize.height ?? -1)")
+        }
+        step(6.6) {
+            NotificationCenter.default.post(
+                name: SelfTest.setFormTitle, object: "编辑后的标题"
+            )
+            NotificationCenter.default.post(
+                name: SelfTest.toggleDeadline, object: nil
+            )
+        }
+        step(6.7) {
+            NotificationCenter.default.post(name: SelfTest.saveForm, object: nil)
+        }
+
         step(6.8) { [weak self] in
             guard let self else { exit(1) }
             var ok = true
@@ -179,7 +201,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
-            // ② filtered() 排序接线：真实 store 按紧急度输出
+            // ② 编辑流：第一行被 update 改了标题与期限，createdAt 不变、不产生新条目
+            if let before = self.editingTarget {
+                let beforeCount = self.store.todos.count
+                let after = self.store.todos.first { $0.id == before.id }
+                if after == nil || after?.title != "编辑后的标题" || after?.deadline == nil {
+                    print("EDIT FAIL: \(String(describing: after?.title)) deadline=\(String(describing: after?.deadline))")
+                    ok = false
+                }
+                if after?.createdAt != before.createdAt {
+                    print("EDIT FAIL: createdAt 被篡改")
+                    ok = false
+                }
+                if self.store.todos.count != beforeCount {
+                    print("EDIT FAIL: 编辑产生了新条目")
+                    ok = false
+                }
+            } else {
+                print("EDIT FAIL: 编辑目标未设置")
+                ok = false
+            }
+
+            // ③ filtered() 排序接线：真实 store 按紧急度输出
             for t in self.store.todos { self.store.delete(t.id) }
             let now = Date()
             self.store.add(title: "逾期A", notes: "", deadline: now.addingTimeInterval(-3600), contact: "")
@@ -200,6 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("SORT FAIL: done-last order=\(afterDone)")
                 ok = false
             }
+
             if ok {
                 print("SORT OK")
             } else {
@@ -308,6 +352,10 @@ enum SelfTest {
     static let openForm = Notification.Name("todoMenu.selftest.openForm")
     static let closeForm = Notification.Name("todoMenu.selftest.closeForm")
     static let toggleNotes = Notification.Name("todoMenu.selftest.toggleNotes")
+    static let editFirstRow = Notification.Name("todoMenu.selftest.editFirstRow")
+    static let setFormTitle = Notification.Name("todoMenu.selftest.setFormTitle")
+    static let toggleDeadline = Notification.Name("todoMenu.selftest.toggleDeadline")
+    static let saveForm = Notification.Name("todoMenu.selftest.saveForm")
 }
 
 /// 截图模式常量（--shot <输出路径>）

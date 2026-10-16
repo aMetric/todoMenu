@@ -5,6 +5,7 @@ import SwiftUI
 struct TodoRowView: View {
     @EnvironmentObject private var store: TodoStore
     let todo: Todo
+    var onEdit: (Todo) -> Void
 
     @State private var isHovering = false
 
@@ -51,6 +52,18 @@ struct TodoRowView: View {
                 }
                 .buttonStyle(.plain)
                 .help("删除")
+            }
+
+            if isHovering {
+                Button {
+                    onEdit(todo)
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("编辑")
             }
         }
         .padding(.horizontal, 12)

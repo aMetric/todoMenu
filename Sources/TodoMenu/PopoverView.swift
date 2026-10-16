@@ -6,6 +6,7 @@ struct PopoverView: View {
     @EnvironmentObject private var store: TodoStore
     @State private var searchText = ""
     @State private var showAddForm = false
+    @State private var editingTodo: Todo?
 
     private let rowHeight: CGFloat = 44
     private let maxVisibleRows = 5
@@ -27,8 +28,14 @@ struct PopoverView: View {
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.closeForm)) { _ in
             guard SelfTest.isEnabled else { return }
             showAddForm = false
+            editingTodo = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SelfTest.editFirstRow)) { note in
+            guard SelfTest.isEnabled, let target = note.object as? Todo else { return }
+            editingTodo = target
         }
         .onChange(of: showAddForm) { _, _ in notifySizeChange() }
+        .onChange(of: editingTodo) { _, _ in notifySizeChange() }
         .onChange(of: searchText) { _, _ in notifySizeChange() }
         .onChange(of: store.todos) { _, _ in notifySizeChange() }
     }
@@ -61,8 +68,12 @@ struct PopoverView: View {
 
     @ViewBuilder
     private var content: some View {
-        if showAddForm {
-            AddTodoView(onDone: {
+        if let editing = editingTodo {
+            TodoFormView(editing: editing, onDone: {
+                editingTodo = nil
+            })
+        } else if showAddForm {
+            TodoFormView(editing: nil, onDone: {
                 showAddForm = false
             })
         }
@@ -73,7 +84,9 @@ struct PopoverView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(items) { todo in
-                        TodoRowView(todo: todo)
+                        TodoRowView(todo: todo, onEdit: { t in
+                            editingTodo = t
+                        })
                             .frame(height: rowHeight)
                         Divider()
                             .padding(.leading, 12)
