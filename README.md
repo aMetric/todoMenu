@@ -19,7 +19,35 @@ A checkmark icon lives in your menu bar; click it to open a tiny todo panel. **L
 
 ## 预览 Preview
 
-![TodoMenu 面板](docs/screenshot.png)
+![TodoMenu 主界面](docs/shots/panel.png)
+
+点菜单栏勾选图标即开面板：列表按**紧急度排序**（逾期红、今天橙），底部摘要随时告诉你"几条待办、几条逾期"。
+
+## 🖼 核心功能 Function Tour
+
+### 秒记一条：Cmd+N 或点 ➕
+
+![新增待办](docs/shots/form.png)
+
+表单自动聚焦名称，**Enter 保存、Esc 收起**。"添加明细"可展开多行输入——开会时领导点评的几句话，原样记下来。
+
+### 编辑：悬停行出 ✏️
+
+![编辑待办](docs/shots/edit.png)
+
+改名称、改截止时间、补明细、换对接人，原条目原地更新（新增时间不变）。
+
+### 误删有后悔药
+
+![撤销](docs/shots/undo.png)
+
+删除或勾选完成后，底部出现 **撤销条（4 秒内有效）**，点"撤销"或按 **Cmd+Z** 即恢复。
+
+### 空状态引导
+
+![空状态](docs/shots/empty.png)
+
+第一次打开不迷路：一行提示讲完全部操作。
 
 ## ✨ 特性 Features
 
@@ -60,8 +88,8 @@ open build/TodoMenu.app
 
 ## 使用 Usage
 
-1. 菜单栏点击 **TODO** 打开面板
-2. 点右上角 **+** 新增待办：名称（必填）、明细（选填，可多行）、截止时间（可留空）、对接人（选填）
+1. 菜单栏点击勾选图标打开面板
+2. 点右上角 **+** 或按 **Cmd+N** 新增待办：名称（必填）、明细（选填，可多行）、截止时间（可留空）、对接人（选填）
 3. 点击行首圆圈标记完成；悬停该行出现 ✏️ 可编辑、🗑 可删除
 4. **Cmd+N** 快速新增（表单自动聚焦名称，Enter 保存，Esc 收起）
 5. 删除 / 完成后 4 秒内可点底部 **撤销**（或 **Cmd+Z**）恢复
@@ -97,8 +125,10 @@ swift run                    # 直接运行（开发调试，本机架构）
 # 自动化冒烟测试：模拟表单开合、增删改操作，验证无崩溃且弹层尺寸同步
 ./build/TodoMenu.app/Contents/MacOS/TodoMenu --selftest
 
-# 生成 README 截图（使用示例数据，不读取真实数据）
-./build/TodoMenu.app/Contents/MacOS/TodoMenu --shot docs/screenshot.png
+# 生成文档截图（示例数据，不读真实数据）
+./build/TodoMenu.app/Contents/MacOS/TodoMenu --shot panel=docs/shots/panel.png
+./build/TodoMenu.app/Contents/MacOS/TodoMenu --shot form=docs/shots/form.png
+# 场景：panel（含合成菜单栏）/ form / edit / undo / empty
 ```
 
 架构说明见 [PLAN.md](PLAN.md)（方案、数据模型、兼容性策略、实现备注）。

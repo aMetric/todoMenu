@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import CoreText
 import SwiftUI
 
 /// 应用外壳：NSStatusItem（菜单栏 "TODO" 文字图标）+ NSPopover（承载 SwiftUI 内容）。
@@ -21,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 自测模式使用临时数据文件，不污染真实数据
             return TodoStore(fileURL: SelfTest.dataURL)
         }
-        if Shot.outputPath != nil {
+        if Shot.isActive {
             // 截图模式同样使用临时数据文件
             return TodoStore(fileURL: Shot.dataURL)
         }
@@ -34,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 清掉上次自测遗留的数据文件，保证测试确定性
             try? FileManager.default.removeItem(at: SelfTest.dataURL)
         }
-        if Shot.outputPath != nil {
+        if Shot.isActive {
             try? FileManager.default.removeItem(at: Shot.dataURL)
         }
         setupStatusItem()
@@ -45,8 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.syncPopoverSize()
         }
-        if let shotPath = Shot.outputPath {
-            runShotIfNeeded(shotPath)
+        if let shot = Shot.scene {
+            runShotIfNeeded(shot)
         } else if LaunchAtLoginCLI.isEnabled {
             // 维护参数：切换开机自启注册后立即退出（供安装脚本/终端验证用）
             let newState = LaunchAtLogin.toggle()
@@ -343,7 +344,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 用示例数据打开弹层并截取面板窗口，用于生成 README 截图。
     /// 与真实数据完全隔离；应用捕获自己的窗口，无需屏幕录制权限。
-    private func runShotIfNeeded(_ outputPath: String) {
+    /// 场景：panel（列表+悬停）/ form（新增表单）/ edit（编辑表单）/ undo（撤销条）/ empty（空状态）
+    private func runShotIfNeeded(_ scene: Shot.Scene) {
+        seedShotData(scene.name)
+
+        step(0.6) { [weak self] in
+            NSApp.activate(ignoringOtherApps: true)
+            self?.togglePopover(nil)
+        }
+        // 场景准备：表单/编辑/撤销在弹层打开后再触发
+        step(1.0) { [weak self] in
+            guard let self else { return }
+            switch scene.name {
+            case "form":
+                NotificationCenter.default.post(name: SelfTest.openForm, object: nil)
+            case "edit":
+                if let first = store.filtered("").first {
+                    NotificationCenter.default.post(
+                        name: SelfTest.editFirstRow, object: first
+                    )
+                }
+            case "undo":
+                if let first = store.filtered("").first {
+                    store.delete(first.id) // 底部出现撤销条
+                }
+            case "empty":
+                for t in store.todos { store.delete(t.id) }
+            default:
+                break
+            }
+        }
+        step(1.8) { [weak self] in
+            self?.captureShot(to: scene.path, composeMenubar: scene.name == "panel")
+        }
+    }
+
+    /// 各场景的示例数据
+    private func seedShotData(_ scene: String) {
         let cal = Calendar.current
         let now = Date()
         let yesterday = cal.date(byAdding: .day, value: -1, to: now) ?? now
@@ -364,17 +401,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let last = store.todos.last {
             store.toggleDone(last.id) // 展示已完成样式
         }
-
-        step(0.6) { [weak self] in
-            NSApp.activate(ignoringOtherApps: true)
-            self?.togglePopover(nil)
-        }
-        step(1.8) { [weak self] in
-            self?.captureShot(to: outputPath)
-        }
     }
 
-    private func captureShot(to path: String) {
+    /// 截取弹层窗口；panel 场景额外合成一段菜单栏场景（含 TODO 图标）
+    private func captureShot(to path: String, composeMenubar: Bool) {
         guard let window = popover?.contentViewController?.view.window else {
             print("SHOT FAIL: window not found")
             exit(1)
@@ -390,7 +420,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("SHOT FAIL: capture failed")
             exit(1)
         }
-        let rep = NSBitmapImageRep(cgImage: image)
+        var finalImage = image
+        if composeMenubar {
+            finalImage = Self.composePanelWithMenubar(panel: image)
+        }
+        let rep = NSBitmapImageRep(cgImage: finalImage)
         guard let data = rep.representation(using: .png, properties: [:]) else {
             print("SHOT FAIL: png encode failed")
             exit(1)
@@ -403,6 +437,124 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("SHOT FAIL: \(error)")
             exit(1)
         }
+    }
+
+    /// 主截图合成：弹层左上角对齐，上方拼一条仿菜单栏（含 SF Symbols 图标、时间、
+    /// 深浅渐变壁纸底色），让"菜单栏应用"的使用场景一眼可读
+    static func composePanelWithMenubar(panel: CGImage) -> CGImage {
+        let scale: CGFloat = 2
+        let menubarH: CGFloat = 24
+        let padLeading: CGFloat = 16
+        let padTop: CGFloat = 12
+        let padTrailing: CGFloat = 24
+        let padBottom: CGFloat = 24
+
+        let panelW = CGFloat(panel.width) / scale
+        let panelH = CGFloat(panel.height) / scale
+        let canvasW = panelW + padLeading + padTrailing
+        let canvasH = menubarH + padTop + panelH + padBottom
+
+        // macOS 菜单栏渐变壁纸底色（近似 Sonoma 深蓝）
+        let colors = [
+            CGColor(red: 0.16, green: 0.18, blue: 0.26, alpha: 1),
+            CGColor(red: 0.22, green: 0.24, blue: 0.34, alpha: 1),
+        ]
+        let canvasWpx = Int(canvasW * scale)
+        let canvasHpx = Int(canvasH * scale)
+        guard let ctx = CGContext(
+            data: nil,
+            width: canvasWpx,
+            height: canvasHpx,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return panel }
+
+        // 背景：顶部深、往下渐浅的壁纸感
+        let bg = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!, colors: colors as CFArray, locations: [0, 1])!
+        ctx.drawLinearGradient(
+            bg,
+            start: CGPoint(x: 0, y: CGFloat(canvasHpx)),
+            end: CGPoint(x: 0, y: 0),
+            options: []
+        )
+
+        // 菜单栏：图标 + 菜单文字 + 时间，白色 85%
+        let icon = NSImage(systemSymbolName: AppDelegate.menubarSymbol, accessibilityDescription: nil)
+        icon?.isTemplate = true
+        let iconSize: CGFloat = 15
+        let iconX = padLeading + 10
+        let iconY = (menubarH - iconSize) / 2
+        if let icon,
+           let iconCG = icon.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            // 模板图标是黑色，画白色：用 NSImage 绘制 + sourceAtop 太繁琐，
+            // 直接以普通方式绘制（浅底图标在深底上不可见），改用白色 tint：
+            let tinted = Self.tintCGImage(iconCG, color: CGColor(red: 1, green: 1, blue: 1, alpha: 0.9))
+            ctx.draw(
+                tinted,
+                in: CGRect(x: iconX * scale, y: (canvasH - iconY - iconSize) * scale, width: iconSize * scale, height: iconSize * scale)
+            )
+        }
+
+        // 菜单栏右侧时间（CoreText 直画，避免 NSGraphicsContext 依赖）
+        let timeAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.menuBarFont(ofSize: 0),
+            .foregroundColor: NSColor(calibratedWhite: 1, alpha: 0.92),
+        ]
+        let timeStr = NSAttributedString(string: "10月16日 周四 12:34", attributes: timeAttrs)
+        let timeSize = timeStr.size()
+        let timeX = canvasW - padTrailing - timeSize.width
+        let timeY = (menubarH - timeSize.height) / 2
+        // CoreText 坐标原点左下、y 向上：文字基线放进菜单栏条（顶部 menubarH pt）
+        let line = CTLineCreateWithAttributedString(timeStr)
+        ctx.textPosition = CGPoint(
+            x: timeX * scale,
+            y: (canvasH - timeSize.height - (menubarH - timeSize.height) / 2) * scale
+        )
+        CTLineDraw(line, ctx)
+
+        // 淡描边：让弹层在深色底上更"浮"
+        // CGContext 坐标原点在左下；NSImage/NSAttributedString 绘制原点在左下（ flipped 无关）
+        // 弹层：CGImage 直接绘制
+        let panelRect = CGRect(
+            x: padLeading * scale,
+            y: padBottom * scale,
+            width: panelW * scale,
+            height: panelH * scale
+        )
+        // 阴影
+        ctx.setShadow(
+            offset: CGSize(width: 0, height: -6),
+            blur: 18,
+            color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.45)
+        )
+        ctx.draw(panel, in: panelRect)
+        ctx.setShadow(offset: .zero, blur: 0, color: nil)
+
+        guard let out = ctx.makeImage() else { return panel }
+        return out
+    }
+
+    /// CGImage 纯色 tint：重绘像素
+    static func tintCGImage(_ image: CGImage, color: CGColor) -> CGImage {
+        let w = image.width
+        let h = image.height
+        guard let ctx = CGContext(
+            data: nil,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return image }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // sourceAtop 覆盖颜色
+        ctx.setBlendMode(.sourceAtop)
+        ctx.setFillColor(color)
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage() ?? image
     }
 }
 
@@ -429,12 +581,28 @@ enum SelfTest {
     static let mockAutoLaunchKey = "todoMenu.selftest.autoLaunchMock"
 }
 
-/// 截图模式常量（--shot <输出路径>）
+/// 截图模式常量（--shot <场景>=<输出路径>；不带的场景默认 panel）
+/// 场景：panel 主面板（合成菜单栏）/ form 新增表单 / edit 编辑 / undo 撤销条 / empty 空状态
 enum Shot {
-    static var outputPath: String? {
+    struct Scene {
+        let name: String
+        let path: String
+    }
+
+    static var rawArg: String? {
         guard let i = CommandLine.arguments.firstIndex(of: "--shot"),
               i + 1 < CommandLine.arguments.count else { return nil }
         return CommandLine.arguments[i + 1]
+    }
+
+    static var isActive: Bool { rawArg != nil }
+
+    static var scene: Scene? {
+        guard let raw = rawArg else { return nil }
+        if let eq = raw.firstIndex(of: "=") {
+            return Scene(name: String(raw[..<eq]), path: String(raw[raw.index(after: eq)...]))
+        }
+        return Scene(name: "panel", path: raw)
     }
 
     static let dataURL = URL(fileURLWithPath: NSTemporaryDirectory())

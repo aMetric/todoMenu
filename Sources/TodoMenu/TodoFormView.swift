@@ -105,19 +105,19 @@ struct TodoFormView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleNotes)) { _ in
-            guard SelfTest.isEnabled else { return }
+            guard SelfTest.isEnabled || Shot.isActive else { return }
             hasNotes.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.saveForm)) { _ in
-            guard SelfTest.isEnabled else { return }
+            guard SelfTest.isEnabled || Shot.isActive else { return }
             submit()
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.setFormTitle)) { note in
-            guard SelfTest.isEnabled, let newTitle = note.object as? String else { return }
+            guard SelfTest.isEnabled || Shot.isActive, let newTitle = note.object as? String else { return }
             title = newTitle
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.toggleDeadline)) { _ in
-            guard SelfTest.isEnabled else { return }
+            guard SelfTest.isEnabled || Shot.isActive else { return }
             hasDeadline = true
         }
         .onChange(of: hasNotes) { _, _ in

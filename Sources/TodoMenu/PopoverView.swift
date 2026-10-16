@@ -23,16 +23,16 @@ struct PopoverView: View {
         .frame(width: 340)
         // 自测钩子：仅在 --selftest 模式下响应
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.openForm)) { _ in
-            guard SelfTest.isEnabled else { return }
+            guard SelfTest.isEnabled || Shot.isActive else { return }
             showAddForm = true
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.closeForm)) { _ in
-            guard SelfTest.isEnabled else { return }
+            guard SelfTest.isEnabled || Shot.isActive else { return }
             showAddForm = false
             editingTodo = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: SelfTest.editFirstRow)) { note in
-            guard SelfTest.isEnabled, let target = note.object as? Todo else { return }
+            guard SelfTest.isEnabled || Shot.isActive, let target = note.object as? Todo else { return }
             editingTodo = target
         }
         // 键盘流：Cmd+N 打开新增表单（挂在整个面板上，列表态即可触发）
