@@ -30,6 +30,12 @@ final class ReminderScheduler {
         ) { _, _ in }
     }
 
+    /// selftest 用：清空 mock 记录
+    func resetForTest() {
+        recordedAll.removeAll()
+        scheduledForTest.removeAll()
+    }
+
     /// 待办数据变化后重排到点提醒：删掉旧排期，按当前数据重建。
     /// 逾期且未完成的待办立即补发一条（每条只发一次，标记持久化）。
     func sync(todos: [Todo]) {

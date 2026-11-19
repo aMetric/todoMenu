@@ -35,6 +35,12 @@ struct PopoverView: View {
             guard SelfTest.isEnabled || Shot.isActive, let target = note.object as? Todo else { return }
             editingTodo = target
         }
+        // 全局快捷键（Cmd+Shift+T）：拉起新增表单（真实模式也可触发）
+        .onReceive(NotificationCenter.default.publisher(for: .openAddForm)) { _ in
+            if editingTodo == nil, !showAddForm {
+                showAddForm = true
+            }
+        }
         // 键盘流：Cmd+N 打开新增表单（挂在整个面板上，列表态即可触发）
         .background(
             Button("新增") {
@@ -130,7 +136,7 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
             if searchText.isEmpty {
                 // 首启微引导：10 秒内能看完的操作提示
-                Text("Enter 保存 · 点圆圈完成 · 悬停可编辑/删除 · Cmd+N 新增")
+                Text("Enter 保存 · 点圆圈完成 · 悬停可编辑/删除 · Cmd+Shift+T 全局新增")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
@@ -191,6 +197,18 @@ struct PopoverView: View {
             }
             .toggleStyle(.checkbox)
             .help("登录 macOS 后自动启动 TodoMenu")
+            Toggle(isOn: Binding(
+                get: { GlobalHotKey.isEnabled },
+                set: { enabled in
+                    GlobalHotKey.isEnabled = enabled
+                    GlobalHotKey.shared.syncRegistration()
+                }
+            )) {
+                Text("⌘⇧T")
+                    .font(.system(size: 11))
+            }
+            .toggleStyle(.checkbox)
+            .help("开启后可在任意界面按 Cmd+Shift+T 拉起新增待办")
             Button("退出") {
                 NSApplication.shared.terminate(nil)
             }

@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 系统通知提醒：selftest/截图模式走 mock，不碰系统通知中心
         ReminderScheduler.shared.isMock = SelfTest.isEnabled || Shot.isActive
         ReminderScheduler.shared.requestAuthorization()
+        setupGlobalHotKey()
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .todosDidChange, object: nil, queue: .main
         ) { [weak self] _ in
@@ -126,6 +127,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reminderSyncPending = false
             ReminderScheduler.shared.sync(todos: store.todos)
         }
+    }
+
+    // MARK: - 全局快捷键
+
+    /// 全局快捷键触发：激活应用 → 弹出面板 → 直接打开新增表单
+    private func setupGlobalHotKey() {
+        GlobalHotKey.shared.onHotKey = { [weak self] in
+            guard let self, let popover, let button = statusItem?.button else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            if !popover.isShown {
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                popover.contentViewController?.view.window?.makeKey()
+                DispatchQueue.main.async { [weak self] in
+                    self?.syncPopoverSize()
+                }
+            }
+            NotificationCenter.default.post(name: .openAddForm, object: nil)
+        }
+        GlobalHotKey.shared.syncRegistration()
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -261,13 +281,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // ③ filtered() 排序接线：真实 store 按紧急度输出
             for t in self.store.todos { self.store.delete(t.id) }
             // 清空提醒 mock 记录与逾期补发标记，让 ⑦ 的断言只覆盖本轮数据
-            ReminderScheduler.shared.recordedAll.removeAll()
-            ReminderScheduler.shared.scheduledForTest.removeAll()
+            ReminderScheduler.shared.resetForTest()
             UserDefaults.standard.removeObject(forKey: "todoMenu.overdueNotified")
             let now = Date()
             self.store.add(title: "逾期A", notes: "", deadline: now.addingTimeInterval(-3600), contact: "")
             self.store.add(title: "无期限B", notes: "", deadline: nil, contact: "")
             self.store.add(title: "未来C", notes: "", deadline: now.addingTimeInterval(48 * 3600), contact: "")
+            // syncReminders 走主线程 async，断言前显式同步排一次，保证 mock 记录已生成
+            ReminderScheduler.shared.sync(todos: self.store.todos)
             let expected = ["逾期A", "未来C", "无期限B"]
             let actual = self.store.filtered("").map(\.title)
             if actual != expected {
@@ -380,6 +401,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                    $0.id == ReminderScheduler.todoPrefix + noDeadline.id.uuidString
                }) {
                 print("REMIND FAIL: 无截止待办被排期")
+                ok = false
+            }
+
+            // ⑧ 全局快捷键开关（mock）：翻转 → 状态生效，再翻回避免污染后续
+            UserDefaults.standard.removeObject(forKey: GlobalHotKey.mockEnabledKey)
+            if GlobalHotKey.isEnabled != false {
+                print("HOTKEY FAIL: mock 初始态应为 false")
+                ok = false
+            }
+            GlobalHotKey.isEnabled = true
+            if GlobalHotKey.isEnabled != true {
+                print("HOTKEY FAIL: 开启后应为 true")
+                ok = false
+            }
+            GlobalHotKey.isEnabled = false
+            if GlobalHotKey.isEnabled != false {
+                print("HOTKEY FAIL: 关闭后应为 false")
+                ok = false
+            }
+            // selftest 模式下不应向系统注册热键
+            if GlobalHotKey.shared.isRegistered {
+                print("HOTKEY FAIL: selftest 模式不应注册系统热键")
                 ok = false
             }
 
@@ -693,4 +736,7 @@ extension Notification.Name {
 
     /// 待办数据已持久化（菜单栏计数等外壳元素跟随刷新）
     static let todosDidChange = Notification.Name("todoMenu.todosDidChange")
+
+    /// 全局快捷键触发：面板内打开新增表单
+    static let openAddForm = Notification.Name("todoMenu.openAddForm")
 }
