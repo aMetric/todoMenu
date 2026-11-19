@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-14 = Sonoma（最低支持版本）；macos-15 = Sequoia
-        os: [macos-14, macos-15]
+        # macos-15 = Sequoia（GitHub 已下架 macos-14 arm64 runner；产物仍面向 macOS 14 部署目标构建）
+        os: [macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

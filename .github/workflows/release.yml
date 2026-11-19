@@ -17,8 +17,8 @@ permissions:
 
 jobs:
   release:
-    # 在最低支持版本环境（Sonoma）构建，保证产物兼容 macOS 14+
-    runs-on: macos-14
+    # GitHub 已下架 macos-14 runner；用 Sequoia 构建，产物仍面向 macOS 14 部署目标（bundle.sh 编译目标 14.0）
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:

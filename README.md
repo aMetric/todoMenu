@@ -112,7 +112,7 @@ open build/TodoMenu.app
 | 环境 | 状态 |
 | --- | --- |
 | macOS 15 (Sequoia) | ✅ CI 持续验证 |
-| **macOS 14 (Sonoma)** | ✅ **最低支持版本**，CI 持续验证 |
+| **macOS 14 (Sonoma)** | ✅ **最低支持版本**（编译目标 14.0；GitHub 已下架 macos-14 runner，CI 在 macos-15 构建验证） |
 | macOS 13 及更早 | ❌ 不支持 |
 | Apple Silicon (M1+) | ✅ Universal 二进制 |
 | Intel | ✅ Universal 二进制 |
