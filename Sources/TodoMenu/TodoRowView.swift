@@ -54,6 +54,24 @@ struct TodoRowView: View {
                 .help("删除")
             }
 
+            if isHovering, !todo.done, todo.deadline != nil {
+                Menu {
+                    Button("10 分钟后") { store.snooze(todo.id, at: Date().addingTimeInterval(600)) }
+                    Button("1 小时后") { store.snooze(todo.id, at: Date().addingTimeInterval(3600)) }
+                    Button("明天 9:00") {
+                        store.snooze(todo.id, at: ReminderScheduler.tomorrowNineOClock())
+                    }
+                } label: {
+                    Image(systemName: "bell")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("稍后提醒")
+            }
+
             if isHovering {
                 Button {
                     onEdit(todo)

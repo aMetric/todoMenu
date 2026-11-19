@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover?
     private var hosting: NSHostingController<AnyView>?
     private var sizeObserver: NSObjectProtocol?
+    /// 数据变化时重排提醒通知（多个通知合并到主线程一次 sync）
+    private var reminderSyncPending = false
     private var selftestHeights: [CGFloat] = []
     private var editingTarget: Todo?
 
@@ -40,6 +42,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupStatusItem()
         setupPopover()
+        // 系统通知提醒：selftest/截图模式走 mock，不碰系统通知中心
+        ReminderScheduler.shared.isMock = SelfTest.isEnabled || Shot.isActive
+        ReminderScheduler.shared.requestAuthorization()
+        sizeObserver = NotificationCenter.default.addObserver(
+            forName: .todosDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.syncReminders()
+        }
         // 内容变化时（表单开合、增删改查、搜索过滤）同步弹层尺寸
         sizeObserver = NotificationCenter.default.addObserver(
             forName: .popoverSizeDidChange, object: nil, queue: .main
@@ -104,6 +114,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = ideal
         if SelfTest.isEnabled {
             selftestHeights.append(ideal.height)
+        }
+    }
+
+    /// 数据变化 → 重排提醒通知
+    private func syncReminders() {
+        guard !reminderSyncPending else { return }
+        reminderSyncPending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            reminderSyncPending = false
+            ReminderScheduler.shared.sync(todos: store.todos)
         }
     }
 
@@ -239,6 +260,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             // ③ filtered() 排序接线：真实 store 按紧急度输出
             for t in self.store.todos { self.store.delete(t.id) }
+            // 清空提醒 mock 记录与逾期补发标记，让 ⑦ 的断言只覆盖本轮数据
+            ReminderScheduler.shared.recordedAll.removeAll()
+            ReminderScheduler.shared.scheduledForTest.removeAll()
+            UserDefaults.standard.removeObject(forKey: "todoMenu.overdueNotified")
             let now = Date()
             self.store.add(title: "逾期A", notes: "", deadline: now.addingTimeInterval(-3600), contact: "")
             self.store.add(title: "无期限B", notes: "", deadline: nil, contact: "")
@@ -309,6 +334,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LaunchAtLogin.toggle()
             if LaunchAtLogin.isEnabled != false {
                 print("AUTOLAUNCH FAIL: 回翻后应为 false")
+                ok = false
+            }
+
+            // ⑦ 提醒调度（mock）：未来截止被排期、逾期补发且只发一次、稍后提醒生效
+            let sched = ReminderScheduler.shared
+            // 逾期A 已补发（历史记录里 date 为 nil 的到点提醒恰好 1 条）
+            let overdueNotifies = sched.recordedAll.filter {
+                $0.id.hasPrefix(ReminderScheduler.todoPrefix) && $0.date == nil
+            }
+            if overdueNotifies.count != 1 {
+                print("REMIND FAIL: 逾期补发次数=\(overdueNotifies.count) 应为 1")
+                ok = false
+            }
+            // 未来C 被排期到截止时间（误差 60s 内）
+            if let futureC = self.store.todos.first(where: { $0.title == "未来C" }),
+               let hit = sched.scheduledForTest.first(where: {
+                   $0.id == ReminderScheduler.todoPrefix + futureC.id.uuidString
+               }),
+               let at = hit.date {
+                if abs(at.timeIntervalSince(futureC.deadline!)) > 60 {
+                    print("REMIND FAIL: 未来C 排期时间偏差过大")
+                    ok = false
+                }
+            } else {
+                print("REMIND FAIL: 未来C 未被排期")
+                ok = false
+            }
+            // 稍后提醒：排一条 10 分钟后，identifier 前缀正确
+            if let anyTodo = self.store.todos.first(where: { !$0.done && $0.deadline != nil }) {
+                sched.snooze(todo: anyTodo, at: Date().addingTimeInterval(600))
+                if !sched.recordedAll.contains(where: {
+                    $0.id.hasPrefix(ReminderScheduler.snoozePrefix)
+                }) {
+                    print("REMIND FAIL: 稍后提醒未记录")
+                    ok = false
+                }
+            } else {
+                print("REMIND FAIL: 无可稍后提醒的待办")
+                ok = false
+            }
+            // 无截止时间的待办（无期限B）不排期
+            if let noDeadline = self.store.todos.first(where: { $0.title == "无期限B" }),
+               sched.scheduledForTest.contains(where: {
+                   $0.id == ReminderScheduler.todoPrefix + noDeadline.id.uuidString
+               }) {
+                print("REMIND FAIL: 无截止待办被排期")
                 ok = false
             }
 

@@ -118,6 +118,12 @@ final class TodoStore: ObservableObject {
         save()
     }
 
+    /// 稍后提醒：为该待办在指定时间排一条一次性通知
+    func snooze(_ id: UUID, at date: Date) {
+        guard let todo = todos.first(where: { $0.id == id }) else { return }
+        ReminderScheduler.shared.snooze(todo: todo, at: date)
+    }
+
     func toggleDone(_ id: UUID) {
         guard let i = todos.firstIndex(where: { $0.id == id }) else { return }
         lastSnapshot = todos
