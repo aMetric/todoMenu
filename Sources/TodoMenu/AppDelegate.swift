@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupStatusItem()
         setupPopover()
+        setupEditMenu()
         // 系统通知提醒：selftest/截图模式走 mock，不碰系统通知中心
         ReminderScheduler.shared.isMock = SelfTest.isEnabled || Shot.isActive
         ReminderScheduler.shared.requestAuthorization()
@@ -127,6 +128,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reminderSyncPending = false
             ReminderScheduler.shared.sync(todos: store.todos)
         }
+    }
+
+    // MARK: - 最小 Edit 主菜单
+
+    /// 应用是纯 NSStatusItem + NSPopover 启动，没有主菜单，Cmd+V/C/X 等
+    /// key equivalent 在 NSPopover 的 NSHostingView 内、或系统切换活跃 app 后
+    /// 进不了 responder chain，导致面板内输入框间歇性无法粘贴。
+    /// 构建一个最小 Edit 菜单（标准编辑指令），给快捷键正式入口；
+    /// 应用仍是菜单栏应用（无 Dock 图标），不添加其余菜单项。
+    private func setupEditMenu() {
+        let mainMenu = NSMenu()
+
+        let editItem = NSMenuItem()
+        editItem.title = "编辑"
+        editItem.submenu = NSMenu(title: "编辑")
+        mainMenu.addItem(editItem)
+
+        // (标题, 标准 action selector, 快捷键, 修饰键)
+        let entries: [(String, String, String, NSEvent.ModifierFlags)] = [
+            ("剪切", "cut:", "x", [.command]),
+            ("拷贝", "copy:", "c", [.command]),
+            ("粘贴", "paste:", "v", [.command]),
+            ("全选", "selectAll:", "a", [.command]),
+            ("删除", "delete:", "\u{8}", []),
+        ]
+        for (title, action, key, modifiers) in entries {
+            let item = NSMenuItem(title: title, action: NSSelectorFromString(action), keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            editItem.submenu?.addItem(item)
+            if title == "拷贝" || title == "全选" {
+                editItem.submenu?.addItem(.separator())
+            }
+        }
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: - 全局快捷键
@@ -423,6 +459,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // selftest 模式下不应向系统注册热键
             if GlobalHotKey.shared.isRegistered {
                 print("HOTKEY FAIL: selftest 模式不应注册系统热键")
+                ok = false
+            }
+
+            // ⑨ 最小 Edit 主菜单：存在且包含标准编辑指令（Cmd+V/C/X/A 正式入口）
+            if let editSub = NSApp.mainMenu?.items.first?.submenu {
+                let actions = editSub.items.compactMap { $0.action.map { NSStringFromSelector($0) } }
+                for required in ["cut:", "copy:", "paste:", "selectAll:", "delete:"] {
+                    if !actions.contains(required) {
+                        print("EDITMENU FAIL: 缺少 \(required)")
+                        ok = false
+                    }
+                }
+                if editSub.items.first(where: { $0.action == NSSelectorFromString("paste:") })?
+                    .keyEquivalent != "v" {
+                    print("EDITMENU FAIL: paste 未绑定 Cmd+V")
+                    ok = false
+                }
+            } else {
+                print("EDITMENU FAIL: 无 Edit 子菜单")
                 ok = false
             }
 

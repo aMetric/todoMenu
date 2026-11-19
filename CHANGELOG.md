@@ -20,6 +20,10 @@
   - selftest/截图模式走 mock（不注册系统热键），断言覆盖开关翻转与不注册行为
   - 修复：selftest 中提醒 mock 断言与主线程异步 sync 的竞态（断言前显式同步排期一次）；`ReminderScheduler` 增加测试用 `resetForTest()`
 
+### Fixed
+
+- **面板内间歇性无法粘贴**：应用此前无主菜单，Cmd+V/C/X 的 key equivalent 在 NSPopover 的 NSHostingView 内（或系统切换活跃 app 后）进不了 responder chain。启动时构建最小 Edit 主菜单（剪切 / 拷贝 / 粘贴 / 全选 / 删除，标准编辑指令），为快捷键提供正式入口；仍是菜单栏应用，无多余菜单项。selftest 新增 Edit 菜单结构断言
+
 ### Planned
 
 - v1.1：导出导入、备份恢复
